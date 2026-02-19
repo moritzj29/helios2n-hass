@@ -1,6 +1,4 @@
 import logging
-
-from typing import Any, Coroutine
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
@@ -53,10 +51,10 @@ class Helios2nLockEntity(CoordinatorEntity, LockEntity):
     def is_locked(self) -> bool:
         return not self._device.get_switch(self._switch_id)
 
-    async def async_unlock(self, **kwargs) -> Coroutine[Any, Any, None]:
+    async def async_unlock(self, **kwargs) -> None:
         await self._device.set_switch(self._switch_id, True)
         await self.coordinator.async_request_refresh()
 
-    async def async_lock(self, **kwargs) -> Coroutine[Any, Any, None]:
+    async def async_lock(self, **kwargs) -> None:
         await self._device.set_switch(self._switch_id, False)
         await self.coordinator.async_request_refresh()

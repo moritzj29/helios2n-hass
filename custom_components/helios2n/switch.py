@@ -1,6 +1,4 @@
 import logging
-from typing import Any, Coroutine
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
@@ -55,10 +53,10 @@ class Helios2nPortSwitchEntity(CoordinatorEntity, SwitchEntity):
             if port.id == self._port_id:
                 return port.state
 
-    async def async_turn_on(self, **kwargs) -> Coroutine[Any, Any, None]:
+    async def async_turn_on(self, **kwargs) -> None:
         await self._device.set_port(self._port_id, True)
         await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs) -> Coroutine[Any, Any, None]:
+    async def async_turn_off(self, **kwargs) -> None:
         await self._device.set_port(self._port_id, False)
         await self.coordinator.async_request_refresh()
