@@ -85,7 +85,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				vol.Required(CONF_HOST): cv.string,
 				vol.Required(CONF_USERNAME): cv.string,
 				vol.Required(CONF_PASSWORD): cv.string,
-				vol.Required(CONF_PROTOCOL, default="http"):
+				vol.Required(CONF_PROTOCOL, default="https"):
 					selector({
 						"select": {
 							"options": ["http", "https"],
