@@ -9,6 +9,7 @@ import voluptuous as vol
 from py2n import Py2NDevice, Py2NConnectionData
 from py2n.exceptions import DeviceApiError
 from .const import DOMAIN
+from .utils import sanitize_connection_data
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             connect_options = Py2NConnectionData(host=user_input[CONF_HOST], username=user_input[CONF_USERNAME], password=user_input[CONF_PASSWORD], protocol=user_input[CONF_PROTOCOL])
-            _LOGGER.error(connect_options)
+            _LOGGER.error("Testing connection with: %s", sanitize_connection_data(connect_options))
             try:
                 async with aiohttp.ClientSession() as session:
                     device = await Py2NDevice.create(session, connect_options)
