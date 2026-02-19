@@ -24,6 +24,7 @@ class Helios2nPortDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with async_timeout.timeout(10):
                 await self.device.update_port_status()
+            return {port.id: port.state for port in self.device.data.ports}
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
 
@@ -41,6 +42,7 @@ class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with async_timeout.timeout(10):
                 await self.device.update_switch_status()
+            return {switch.id: self.device.get_switch(switch.id) for switch in self.device.data.switches}
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
 
@@ -58,5 +60,6 @@ class Helios2nSensorDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with async_timeout.timeout(10):
                 await self.device.update_system_status()
+            return {"uptime": self.device.data.uptime}
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
