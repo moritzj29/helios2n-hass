@@ -5,12 +5,27 @@
         },
         "step": {
             "user": {
+                "title": "2n/Helios Apparaat Configureren",
+                "description": "Voer de verbindingsgegevens van het apparaat in",
                 "data": {
                     "host": "Host",
-					"username": "Gebruikersnaam",
-                    "password": "Wachtwoord"                    
+                    "username": "Gebruikersnaam",
+                    "password": "Wachtwoord",
+                    "protocol": "Protocol"
                 }
             }
         }
-   }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Referenties Bijwerken",
+                "description": "Werk uw apparaatreferenties bij",
+                "data": {
+                    "username": "Gebruikersnaam",
+                    "password": "Wachtwoord"
+                }
+            }
+        }
+    }
 }

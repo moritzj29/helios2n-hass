@@ -5,12 +5,27 @@
         },
         "step": {
             "user": {
+                "title": "Configure 2n/Helios Device",
+                "description": "Enter the device connection details",
                 "data": {
                     "host": "Host",
-					"username": "Username",
-                    "password": "Password"                    
+                    "username": "Username",
+                    "password": "Password",
+                    "protocol": "Protocol"
                 }
             }
         }
-   }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Update Credentials",
+                "description": "Update your device credentials",
+                "data": {
+                    "username": "Username",
+                    "password": "Password"
+                }
+            }
+        }
+    }
 }
