@@ -86,15 +86,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 	return unload_ok
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType) -> bool:
-	aiohttp_session = async_get_clientsession(hass)
-	connection_data = Py2NConnectionData(
-		host=config.data[CONF_HOST],
-		username=config.options.get(CONF_USERNAME, config.data.get(CONF_USERNAME, "")),
-		password=config.options.get(CONF_PASSWORD, config.data.get(CONF_PASSWORD, "")),
-		protocol=config.data[CONF_PROTOCOL]
-	)
-	device = await Py2NDevice.create(aiohttp_session, connection_data)
-	entry_data = hass.data.setdefault(DOMAIN,{}).setdefault(config.entry_id,{})
+	try:
+		aiohttp_session = async_get_clientsession(hass)
+		connection_data = Py2NConnectionData(
+			host=config.data[CONF_HOST],
+			username=config.options.get(CONF_USERNAME, config.data.get(CONF_USERNAME, "")),
+			password=config.options.get(CONF_PASSWORD, config.data.get(CONF_PASSWORD, "")),
+			protocol=config.data[CONF_PROTOCOL]
+		)
+		_LOGGER.debug("Connecting to device: %s", sanitize_connection_data(connection_data))
+		device = await Py2NDevice.create(aiohttp_session, connection_data)
+	except Exception as err:
+		raise HomeAssistantError(f"Failed to connect to Helios/2N device: {err}") from err
+
+	entry_data = hass.data.setdefault(DOMAIN, {}).setdefault(config.entry_id, {})
 	entry_data["_device"] = device
 	for platform in platforms:
 		entry_data.setdefault(platform, {})
