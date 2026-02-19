@@ -109,24 +109,44 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType) -> bool:
 	entry_data[Platform.BINARY_SENSOR]["coordinator"] = Helios2nPortDataUpdateCoordinator(hass, device)
 	hass.async_create_task(
 		hass.config_entries.async_forward_entry_setups(
-		config, platforms
+			config, platforms
 		)
 	)
 
-	logid = await device.log_subscribe()
-
-	hass.loop.create_task(poll_log(device, logid, hass))
+	try:
+		logid = await device.log_subscribe()
+		hass.loop.create_task(poll_log(device, logid, hass, 0, 5))
+	except Exception as err:
+		_LOGGER.warning("Failed to subscribe to device logs: %s", err)
 
 	return True
 
-async def poll_log(device, logid, hass):
+
+async def poll_log(device, logid, hass, retry_count=0, max_retries=5):
+	"""Poll device logs with retry mechanism."""
 	try:
-		for event in await device.log_pull(logid,timeout=30):
-			hass.bus.async_fire(DOMAIN+"_event", event)
+		for event in await device.log_pull(logid, timeout=30):
+			hass.bus.async_fire(DOMAIN + "_event", event)
+		retry_count = 0  # Reset on successful poll
 	except (DeviceConnectionError, DeviceUnsupportedError) as err:
+		retry_count += 1
+		if retry_count > max_retries:
+			_LOGGER.error("Max retries exceeded for log polling: %s", err)
+			return
 		await asyncio.sleep(5)
 	except DeviceApiError as err:
 		if err.error == ApiError.INVALID_PARAMETER_VALUE:
-			logid = await device.log_subscribe()
+			try:
+				logid = await device.log_subscribe()
+				retry_count = 0
+			except Exception as resubscribe_err:
+				_LOGGER.error("Failed to resubscribe to logs: %s", resubscribe_err)
+				return
+	except Exception as err:
+		_LOGGER.error("Unexpected error in log polling: %s", err)
+		retry_count += 1
+		if retry_count > max_retries:
+			return
+		await asyncio.sleep(5)
 
-	hass.loop.create_task(poll_log(device, logid, hass))
+	hass.loop.create_task(poll_log(device, logid, hass, retry_count, max_retries))
