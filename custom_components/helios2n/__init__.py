@@ -19,6 +19,7 @@ from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUp
 from .utils import sanitize_connection_data, get_ssl_certificate_fingerprint
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
+LOG_POLL_TASK = "_log_poll_task"
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 	
@@ -98,6 +99,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 	"""Unload a config entry and cleanup resources."""
+	entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+	log_task = entry_data.pop(LOG_POLL_TASK, None) if entry_data else None
+	if log_task:
+		log_task.cancel()
+		try:
+			await log_task
+		except asyncio.CancelledError:
+			pass
+
 	unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
 
 	if unload_ok:
@@ -164,7 +174,7 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
 	try:
 		logid = await device.log_subscribe()
-		hass.loop.create_task(poll_log(device, logid, hass, 0, 5))
+		entry_data[LOG_POLL_TASK] = hass.async_create_task(poll_log(device, logid, hass))
 	except Exception as err:
 		_LOGGER.warning("Failed to subscribe to device logs: %s", err)
 
@@ -173,29 +183,36 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
 async def poll_log(device, logid, hass, retry_count=0, max_retries=5):
 	"""Poll device logs with retry mechanism."""
-	try:
-		for event in await device.log_pull(logid, timeout=30):
-			hass.bus.async_fire(DOMAIN + "_event", event)
-		retry_count = 0  # Reset on successful poll
-	except (DeviceConnectionError, DeviceUnsupportedError) as err:
-		retry_count += 1
-		if retry_count > max_retries:
-			_LOGGER.error("Max retries exceeded for log polling: %s", err)
-			return
-		await asyncio.sleep(5)
-	except DeviceApiError as err:
-		if err.error == ApiError.INVALID_PARAMETER_VALUE:
-			try:
-				logid = await device.log_subscribe()
-				retry_count = 0
-			except Exception as resubscribe_err:
-				_LOGGER.error("Failed to resubscribe to logs: %s", resubscribe_err)
+	while True:
+		try:
+			for event in await device.log_pull(logid, timeout=30):
+				hass.bus.async_fire(DOMAIN + "_event", event)
+			retry_count = 0  # Reset on successful poll
+		except asyncio.CancelledError:
+			raise
+		except (DeviceConnectionError, DeviceUnsupportedError) as err:
+			retry_count += 1
+			if retry_count > max_retries:
+				_LOGGER.error("Max retries exceeded for log polling: %s", err)
 				return
-	except Exception as err:
-		_LOGGER.error("Unexpected error in log polling: %s", err)
-		retry_count += 1
-		if retry_count > max_retries:
-			return
-		await asyncio.sleep(5)
-
-	hass.loop.create_task(poll_log(device, logid, hass, retry_count, max_retries))
+			await asyncio.sleep(5)
+		except DeviceApiError as err:
+			if err.error == ApiError.INVALID_PARAMETER_VALUE:
+				try:
+					logid = await device.log_subscribe()
+					retry_count = 0
+				except Exception as resubscribe_err:
+					_LOGGER.error("Failed to resubscribe to logs: %s", resubscribe_err)
+					return
+			else:
+				retry_count += 1
+				if retry_count > max_retries:
+					_LOGGER.error("Max retries exceeded for log polling: %s", err)
+					return
+				await asyncio.sleep(5)
+		except Exception as err:
+			_LOGGER.error("Unexpected error in log polling: %s", err)
+			retry_count += 1
+			if retry_count > max_retries:
+				return
+			await asyncio.sleep(5)
