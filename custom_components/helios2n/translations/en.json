@@ -6,6 +6,11 @@
         "error": {
             "timeout_error": "Connection timed out",
             "api_error": "Device API rejected the credentials or request",
+            "invalid_connection_type": "Device rejected the selected protocol. Check HTTP API connection type settings on the device.",
+            "authorization_required": "Authorization required. Verify the API username and password.",
+            "insufficient_privileges": "Insufficient privileges for this account. Update HTTP API permissions on the device.",
+            "invalid_authentication_method": "Unsupported authentication method configured on the device. Use Basic authentication for HTTP API.",
+            "invalid_protocol": "Invalid protocol selection. Choose HTTP or HTTPS.",
             "cannot_connect": "Failed to connect to the device",
             "unknown": "Unexpected error"
         },
@@ -21,7 +26,11 @@
                     "verify_ssl": "Verify SSL Certificate"
                 },
                 "data_description": {
-                    "verify_ssl": "Disable for self-signed certificates. Certificate fingerprint will be monitored for changes."
+                    "host": "IP address or hostname of your 2N device (for example 192.168.1.25).",
+                    "username": "HTTP API account username configured on the device.",
+                    "password": "HTTP API account password for the configured user.",
+                    "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
+                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes."
                 }
             }
         }
@@ -34,6 +43,10 @@
                 "data": {
                     "username": "Username",
                     "password": "Password"
+                },
+                "data_description": {
+                    "username": "Updated HTTP API account username configured on the device.",
+                    "password": "Updated HTTP API account password configured on the device."
                 }
             }
         }
