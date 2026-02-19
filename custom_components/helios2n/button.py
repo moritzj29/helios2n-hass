@@ -1,6 +1,4 @@
 import logging
-
-from typing import Any, Coroutine
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
@@ -44,7 +42,7 @@ class Helios2nSwitchButtonEntity(ButtonEntity):
             sw_version = self._device.data.firmware,
         )
 
-    async def async_press(self) -> Coroutine[Any, Any, None]:
+    async def async_press(self) -> None:
         await self._device.set_switch(self._switch_id, True)
 
 
