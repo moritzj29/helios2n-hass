@@ -9,7 +9,7 @@ import voluptuous as vol
 from py2n import Py2NDevice, Py2NConnectionData
 from py2n.exceptions import DeviceApiError
 from .const import DOMAIN, CONF_CERTIFICATE_FINGERPRINT, DEFAULT_VERIFY_SSL
-from .utils import sanitize_connection_data, get_ssl_certificate_fingerprint
+from .utils import sanitize_connection_data, async_get_ssl_certificate_fingerprint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				# Get certificate fingerprint if using HTTPS with verify_ssl disabled
 				cert_fingerprint = None
 				if user_input[CONF_PROTOCOL] == "https" and not user_input[CONF_VERIFY_SSL]:
-					cert_fingerprint = get_ssl_certificate_fingerprint(user_input[CONF_HOST])
+					cert_fingerprint = await async_get_ssl_certificate_fingerprint(self.hass, user_input[CONF_HOST])
 
 				return self.async_create_entry(
 					title=device.data.name,
