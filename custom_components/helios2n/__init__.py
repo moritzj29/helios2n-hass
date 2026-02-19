@@ -31,14 +31,29 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 			raise ServiceValidationError(f"Entry {entry} not set up.")
 		device = domain[entry]["_device"]
 
+		# Validate input parameters
 		method = call.data.get(ATTR_METHOD, DEFAULT_METHOD)
+		if method not in ["GET", "POST", "PUT", "DELETE"]:
+			raise ServiceValidationError(f"Invalid HTTP method: {method}. Supported: GET, POST, PUT, DELETE")
+
 		endpoint = call.data.get(ATTR_ENDPOINT)
-		timeout = call.data.get(ATTR_TIMEOUT,DEFAULT_TIMEOUT)
+		if not endpoint:
+			raise ServiceValidationError("Endpoint is required")
+
+		# Validate timeout is within reasonable range
+		timeout = call.data.get(ATTR_TIMEOUT, DEFAULT_TIMEOUT)
+		try:
+			timeout_int = int(timeout)
+			if timeout_int < 0 or timeout_int > 3600:
+				raise ServiceValidationError("Timeout must be between 0 and 3600 seconds")
+		except (ValueError, TypeError):
+			raise ServiceValidationError("Timeout must be a valid integer")
+
 		data = call.data.get(ATTR_DATA)
 		json = call.data.get(ATTR_JSON)
 		result = {}
 		try: 
-			result = await device.api_request(endpoint, timeout, method, data, json)
+			result = await device.api_request(endpoint, timeout_int, method, data, json)
 		except Py2NError as err:
 			raise HomeAssistantError("error from api call:", err) from err
 
