@@ -16,109 +16,109 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class Helios2nOptionsFlow(config_entries.OptionsFlow):
-	"""Handle options for Helios2n."""
+    """Handle options for Helios2n."""
 
-	def __init__(self, config_entry):
-		"""Initialize options flow."""
-		self.config_entry = config_entry
+    def __init__(self, config_entry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
 
-	async def async_step_init(self, user_input=None):
-		"""Manage the options."""
-		if user_input is not None:
-			return self.async_create_entry(title="", data=user_input)
+    async def async_step_init(self, user_input=None):
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
 
-		options_schema = vol.Schema({
-			vol.Required(
-				CONF_USERNAME,
-				default=self.config_entry.options.get(CONF_USERNAME, ""),
-			): cv.string,
-			vol.Required(
-				CONF_PASSWORD,
-				default=self.config_entry.options.get(CONF_PASSWORD, ""),
-			): cv.string,
-		})
+        options_schema = vol.Schema({
+            vol.Required(
+                CONF_USERNAME,
+                default=self.config_entry.options.get(CONF_USERNAME, ""),
+            ): cv.string,
+            vol.Required(
+                CONF_PASSWORD,
+                default=self.config_entry.options.get(CONF_PASSWORD, ""),
+            ): cv.string,
+        })
 
-		return self.async_show_form(
-			step_id="init",
-			data_schema=options_schema
-		)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=options_schema
+        )
 
 
 class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-	"""Helios/2n config flow"""
-	VERSION = 1
+    """Helios/2n config flow"""
+    VERSION = 1
 
-	async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-		errors = {}
-		if user_input is not None:
-			connect_options = Py2NConnectionData(
-				user_input[CONF_HOST],
-				user_input[CONF_USERNAME],
-				user_input[CONF_PASSWORD],
-				user_input[CONF_PROTOCOL],
-			)
-			_LOGGER.debug("Testing connection with: %s", sanitize_connection_data(connect_options))
-			try:
-				async with aiohttp.ClientSession() as session:
-					device = await Py2NDevice.create(session, connect_options)
-			except (TimeoutError, asyncio.TimeoutError):
-				errors["base"] = "timeout_error"
-			except DeviceApiError:
-				errors["base"] = "api_error"
-			except (DeviceConnectionError, aiohttp.ClientError, OSError):
-				errors["base"] = "cannot_connect"
-			except Exception:
-				_LOGGER.exception("Unexpected error during device validation")
-				errors["base"] = "unknown"
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+        errors = {}
+        if user_input is not None:
+            connect_options = Py2NConnectionData(
+                user_input[CONF_HOST],
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
+                user_input[CONF_PROTOCOL],
+            )
+            _LOGGER.debug("Testing connection with: %s", sanitize_connection_data(connect_options))
+            try:
+                async with aiohttp.ClientSession() as session:
+                    device = await Py2NDevice.create(session, connect_options)
+            except (TimeoutError, asyncio.TimeoutError):
+                errors["base"] = "timeout_error"
+            except DeviceApiError:
+                errors["base"] = "api_error"
+            except (DeviceConnectionError, aiohttp.ClientError, OSError):
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("Unexpected error during device validation")
+                errors["base"] = "unknown"
 
-			if not errors:
-				await self.async_set_unique_id(device.data.serial)
-				self._abort_if_unique_id_configured()
+            if not errors:
+                await self.async_set_unique_id(device.data.serial)
+                self._abort_if_unique_id_configured()
 
-				# Get certificate fingerprint if using HTTPS with verify_ssl disabled
-				cert_fingerprint = None
-				if user_input[CONF_PROTOCOL] == "https" and not user_input[CONF_VERIFY_SSL]:
-					cert_fingerprint = await async_get_ssl_certificate_fingerprint(
-						self.hass, user_input[CONF_HOST]
-					)
+                # Get certificate fingerprint if using HTTPS with verify_ssl disabled
+                cert_fingerprint = None
+                if user_input[CONF_PROTOCOL] == "https" and not user_input[CONF_VERIFY_SSL]:
+                    cert_fingerprint = await async_get_ssl_certificate_fingerprint(
+                        self.hass, user_input[CONF_HOST]
+                    )
 
-				return self.async_create_entry(
-					title=device.data.name,
-					data={
-						CONF_HOST: user_input[CONF_HOST],
-						CONF_PROTOCOL: user_input[CONF_PROTOCOL],
-						CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
-						CONF_CERTIFICATE_FINGERPRINT: cert_fingerprint,
-					},
-					options={
-						CONF_USERNAME: user_input[CONF_USERNAME],
-						CONF_PASSWORD: user_input[CONF_PASSWORD],
-					},
-				)
+                return self.async_create_entry(
+                    title=device.data.name,
+                    data={
+                        CONF_HOST: user_input[CONF_HOST],
+                        CONF_PROTOCOL: user_input[CONF_PROTOCOL],
+                        CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
+                        CONF_CERTIFICATE_FINGERPRINT: cert_fingerprint,
+                    },
+                    options={
+                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    },
+                )
 
-		return self.async_show_form(
-			step_id="user",
-			data_schema=vol.Schema({
-				vol.Required(CONF_HOST): cv.string,
-				vol.Required(CONF_USERNAME): cv.string,
-				vol.Required(CONF_PASSWORD): cv.string,
-				vol.Required(CONF_PROTOCOL, default="https"):
-					selector({
-						"select": {
-							"options": ["http", "https"],
-							"mode": "dropdown",
-						},
-					}),
-				vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL):
-					selector({
-						"boolean": {},
-					}),
-			}),
-			errors=errors
-		)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema({
+                vol.Required(CONF_HOST): cv.string,
+                vol.Required(CONF_USERNAME): cv.string,
+                vol.Required(CONF_PASSWORD): cv.string,
+                vol.Required(CONF_PROTOCOL, default="https"):
+                    selector({
+                        "select": {
+                            "options": ["http", "https"],
+                            "mode": "dropdown",
+                        },
+                    }),
+                vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL):
+                    selector({
+                        "boolean": {},
+                    }),
+            }),
+            errors=errors
+        )
 
-	@staticmethod
-	def async_get_options_flow(config_entry):
-		"""Get options flow for this integration."""
-		return Helios2nOptionsFlow(config_entry)
-	
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        """Get options flow for this integration."""
+        return Helios2nOptionsFlow(config_entry)
+    
