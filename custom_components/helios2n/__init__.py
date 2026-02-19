@@ -65,10 +65,25 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 		else:
 			return None
 
-	hass.services.async_register(DOMAIN, "api_call", api_call,supports_response=SupportsResponse.OPTIONAL)
+	hass.services.async_register(DOMAIN, "api_call", api_call, supports_response=SupportsResponse.OPTIONAL)
 
 	# Return boolean to indicate that initialization was successful.
 	return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+	"""Unload a config entry and cleanup resources."""
+	unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
+
+	if unload_ok:
+		# Clean up hass.data
+		hass.data[DOMAIN].pop(entry.entry_id)
+		
+		# Unregister services if this was the last entry
+		if len(hass.data[DOMAIN]) == 0:
+			hass.services.async_remove(DOMAIN, "api_call")
+
+	return unload_ok
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType) -> bool:
 	aiohttp_session = async_get_clientsession(hass)
