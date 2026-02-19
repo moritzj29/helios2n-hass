@@ -21,15 +21,15 @@ The following features are planned:
 Devices have been tested with Firmware version 2.39, and as of now this is the only supported firmware level.
 Older firmware versions *should* work, but no guarantees.
 Supported devices:
-- All 2n IP intercoms (IP Verso, LTE Verso, IP Style, etc.)
-- 2n Access Unit 1.0/2.0/M
+- All 2N IP intercoms (IP Verso, LTE Verso, IP Style, etc.)
+- 2N Access Unit 1.0/2.0/M
 
 *Note: Some older intercoms and firmware versions need a license for API functionality. Newer firmware versions (if available) lift this restriction, so check for updates before you purchase!*
 
 # Installation
 ## HACS
-1. Add https://github.com/Neffez/helios2n-hass as a custom repository
-2. Download 2n/Helios through the regular explore & download prompt
+1. Add https://github.com/moritzj29/helios2n-hass as a custom repository
+2. Download 2N/Helios through the regular explore & download prompt
 3. Restart Homeassistant
 
 ## Manual
@@ -55,7 +55,7 @@ Supported devices:
 	- **More permissions may be needed in the future**
 
 ## In Home Assistant
-Go to Settings>Devices & Services>Add Integration. Search for 2n/Helios, and select it.
+Go to Settings>Devices & Services>Add Integration. Search for 2N/Helios, and select it.
 Enter the IP address or hostname of your device, and the API credentials you just made, for example:
 
 host: "192.168.1.25"
