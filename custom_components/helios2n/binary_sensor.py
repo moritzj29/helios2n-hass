@@ -53,3 +53,4 @@ class Helios2nPortBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
         for port in self._device.data.ports:
             if port.id == self._port_id:
                 return port.state
+        return False
