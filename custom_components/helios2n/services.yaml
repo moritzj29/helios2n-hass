@@ -24,6 +24,7 @@ api_call:
             - "GET"
             - "POST"
             - "PUT"
+            - "DELETE"
     data:
       selector:
         text:
