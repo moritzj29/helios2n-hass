@@ -141,18 +141,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         for entry_id, entry_data in domain.items():
             entry = hass.config_entries.async_get_entry(entry_id)
-            if entry and not entry.data.get(CONF_VERIFY_SSL, True) and entry.data.get(CONF_PROTOCOL) == "https":
-                current_fingerprint = await async_get_ssl_certificate_fingerprint(
-                    hass, entry.data[CONF_HOST]
-                )
-            if current_fingerprint:
-                hass.config_entries.async_update_entry(
-                    entry,
-                    data={**entry.data, CONF_CERTIFICATE_FINGERPRINT: current_fingerprint}
-                )
-                entry_data[ATTR_CERT_MISMATCH] = False
-                _LOGGER.info("Certificate fingerprint updated for device %s", entry.data[CONF_HOST])
-                return
+            if not entry:
+                continue
+            if entry.data.get(CONF_VERIFY_SSL, True) or entry.data.get(CONF_PROTOCOL) != "https":
+                continue
+
+            current_fingerprint = await async_get_ssl_certificate_fingerprint(
+                hass, entry.data[CONF_HOST]
+            )
+            if not current_fingerprint:
+                continue
+
+            hass.config_entries.async_update_entry(
+                entry,
+                data={**entry.data, CONF_CERTIFICATE_FINGERPRINT: current_fingerprint}
+            )
+            entry_data[ATTR_CERT_MISMATCH] = False
+            _LOGGER.info("Certificate fingerprint updated for device %s", entry.data[CONF_HOST])
+            return
 
         raise ServiceValidationError("No HTTPS device with disabled SSL verification found.")
 

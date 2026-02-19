@@ -1,6 +1,10 @@
 """Tests for service validation helpers."""
+import sys
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.const import CONF_HOST, CONF_PROTOCOL, CONF_VERIFY_SSL
 from homeassistant.exceptions import ServiceValidationError
 
 from .. import (
@@ -8,14 +12,18 @@ from .. import (
 	_validate_http_method,
 	_validate_payload_consistency,
 	_validate_timeout,
+	async_setup,
 )
 from ..const import (
     ATTR_CERT_MISMATCH,
     CONF_CERTIFICATE_FINGERPRINT,
     DEFAULT_METHOD,
     DEFAULT_TIMEOUT,
+    DOMAIN,
     SERVICE_RECAPTURE_CERTIFICATE,
 )
+
+INTEGRATION_MODULE = sys.modules[async_setup.__module__]
 
 
 def test_validate_http_method_accepts_valid_values_case_insensitively():
@@ -88,3 +96,50 @@ def test_certificate_service_constants_are_defined():
     assert SERVICE_RECAPTURE_CERTIFICATE == "recapture_certificate"
     assert ATTR_CERT_MISMATCH == "certificate_mismatch"
     assert CONF_CERTIFICATE_FINGERPRINT == "certificate_fingerprint"
+
+
+@pytest.mark.asyncio
+async def test_recapture_certificate_service_updates_first_matching_entry(monkeypatch):
+    """Recapture service should skip non-matching entries and update HTTPS verify_ssl=False entry."""
+    hass = MagicMock()
+    hass.data = {
+        DOMAIN: {
+            "entry1": {ATTR_CERT_MISMATCH: True},
+            "entry2": {ATTR_CERT_MISMATCH: True},
+        }
+    }
+    hass.services = MagicMock()
+    hass.services.async_register = MagicMock()
+    hass.config_entries = MagicMock()
+    hass.config_entries.async_update_entry = MagicMock()
+    entry1 = SimpleNamespace(data={CONF_VERIFY_SSL: True, CONF_PROTOCOL: "https", CONF_HOST: "host1"})
+    entry2 = SimpleNamespace(data={CONF_VERIFY_SSL: False, CONF_PROTOCOL: "https", CONF_HOST: "host2"})
+    hass.config_entries.async_get_entry = MagicMock(
+        side_effect=lambda entry_id: {"entry1": entry1, "entry2": entry2}[entry_id]
+    )
+
+    await async_setup(hass, {})
+
+    recapture_callback = None
+    for register_call in hass.services.async_register.call_args_list:
+        if register_call.args[1] == SERVICE_RECAPTURE_CERTIFICATE:
+            recapture_callback = register_call.args[2]
+            break
+    assert recapture_callback is not None
+
+    monkeypatch.setattr(
+        INTEGRATION_MODULE,
+        "async_get_ssl_certificate_fingerprint",
+        AsyncMock(return_value="deadbeef"),
+    )
+
+    await recapture_callback(SimpleNamespace(data={}))
+
+    assert hass.config_entries.async_update_entry.call_count == 1
+    assert (
+        hass.config_entries.async_update_entry.call_args.kwargs["data"][
+            CONF_CERTIFICATE_FINGERPRINT
+        ]
+        == "deadbeef"
+    )
+    assert hass.data[DOMAIN]["entry2"][ATTR_CERT_MISMATCH] is False
