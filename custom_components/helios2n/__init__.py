@@ -1,19 +1,21 @@
-from homeassistant.core import HomeAssistant
+import asyncio
+import logging
+from asyncio import TimeoutError
+
+from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse, ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, Platform
-from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from py2n import Py2NDevice, Py2NConnectionData
 from py2n.exceptions import DeviceConnectionError, DeviceUnsupportedError, DeviceApiError, ApiError, Py2NError
 
-import asyncio
-from asyncio import TimeoutError
+_LOGGER = logging.getLogger(__name__)
 
 from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
+from .utils import sanitize_connection_data
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
 
