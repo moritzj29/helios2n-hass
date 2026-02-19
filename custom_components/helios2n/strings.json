@@ -3,6 +3,12 @@
         "abort": {
             "already_configured": "Device already configured"
         },
+        "error": {
+            "timeout_error": "Connection timed out",
+            "api_error": "Device API rejected the credentials or request",
+            "cannot_connect": "Failed to connect to the device",
+            "unknown": "Unexpected error"
+        },
         "step": {
             "user": {
                 "title": "Configure 2n/Helios Device",
