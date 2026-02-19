@@ -11,7 +11,7 @@ def connection_data():
 		host="192.168.1.100",
 		username="admin",
 		password="password123",
-		protocol="https"
+		protocol="https",
 	)
 
 

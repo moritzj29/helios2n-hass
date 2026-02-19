@@ -68,7 +68,23 @@ async def test_async_step_user_returns_api_error(mock_hass):
 		result = await flow.async_step_user(VALID_USER_INPUT)
 
 	assert result["type"] == "form"
-	assert result["errors"]["base"] == "api_error"
+	assert result["errors"]["base"] == "authorization_required"
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_maps_invalid_connection_type_error(mock_hass):
+	"""INVALID_CONNECTION_TYPE should map to a specific UI error."""
+	flow = _new_flow(mock_hass)
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(side_effect=DeviceApiError(error=ApiError.INVALID_CONNECTION_TYPE)),
+	):
+		result = await flow.async_step_user(VALID_USER_INPUT)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "invalid_connection_type"
 
 
 @pytest.mark.asyncio
@@ -116,3 +132,115 @@ async def test_async_step_user_creates_entry_and_stores_fingerprint(mock_hass):
 	assert flow.async_set_unique_id.await_args.args == ("SER123",)
 	assert flow._abort_if_unique_id_configured.call_count == 1
 	assert fingerprint_mock.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_normalizes_protocol_before_connect(mock_hass):
+	"""Protocol should be normalized to lowercase before connecting."""
+	flow = _new_flow(mock_hass)
+	mock_device = SimpleNamespace(data=SimpleNamespace(serial="SER123", name="Door Intercom"))
+	user_input = {**VALID_USER_INPUT, "protocol": "HTTPS", "verify_ssl": True}
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(return_value=mock_device),
+	) as create_mock:
+		result = await flow.async_step_user(user_input)
+
+	assert result["type"] == "create_entry"
+	assert result["data"]["protocol"] == "https"
+	connect_options = create_mock.await_args.args[1]
+	assert connect_options.protocol == "https"
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_uses_invalid_protocol_error(mock_hass):
+	"""Invalid protocol values should be rejected with explicit error."""
+	flow = _new_flow(mock_hass)
+	user_input = {**VALID_USER_INPUT, "protocol": "ftp"}
+
+	result = await flow.async_step_user(user_input)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "invalid_protocol"
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_logs_error_on_failure(mock_hass):
+	"""Failed connection attempts should log at error level."""
+	flow = _new_flow(mock_hass)
+	expected_payload = {
+		"host": VALID_USER_INPUT["host"],
+		"username": "***",
+		"password": "***",
+		"protocol": VALID_USER_INPUT["protocol"],
+		"verify_ssl": VALID_USER_INPUT["verify_ssl"],
+	}
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(side_effect=aiohttp.ClientError("network")),
+	), patch.object(flow_module._LOGGER, "error") as error_log:
+		await flow.async_step_user(VALID_USER_INPUT)
+
+	assert error_log.call_count == 1
+	assert error_log.call_args.args[0] == "Connection test failed: network/client error %s; payload=%s"
+	assert isinstance(error_log.call_args.args[1], aiohttp.ClientError)
+	assert str(error_log.call_args.args[1]) == "network"
+	assert error_log.call_args.args[2] == expected_payload
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_logs_info_on_success(mock_hass):
+	"""Successful connection attempts should log at info level."""
+	flow = _new_flow(mock_hass)
+	mock_device = SimpleNamespace(data=SimpleNamespace(serial="SER123", name="Door Intercom"))
+	user_input = {**VALID_USER_INPUT, "verify_ssl": True}
+	expected_payload = {
+		"host": user_input["host"],
+		"username": "***",
+		"password": "***",
+		"protocol": user_input["protocol"],
+		"verify_ssl": True,
+	}
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(return_value=mock_device),
+	), patch.object(flow_module._LOGGER, "info") as info_log:
+		await flow.async_step_user(user_input)
+
+	assert info_log.call_count == 1
+	assert info_log.call_args.args == (
+		"Connection test succeeded; payload=%s",
+		expected_payload,
+	)
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_logs_invalid_protocol_with_sanitized_payload(mock_hass):
+	"""Invalid protocol path should log sanitized payload for diagnostics."""
+	flow = _new_flow(mock_hass)
+	user_input = {**VALID_USER_INPUT, "protocol": "ftp"}
+	expected_payload = {
+		"host": user_input["host"],
+		"username": "***",
+		"password": "***",
+		"protocol": "ftp",
+		"verify_ssl": user_input["verify_ssl"],
+	}
+
+	with patch.object(flow_module._LOGGER, "error") as error_log:
+		result = await flow.async_step_user(user_input)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "invalid_protocol"
+	assert error_log.call_count == 1
+	assert error_log.call_args.args == (
+		"Connection test aborted: invalid protocol %r; payload=%s",
+		"ftp",
+		expected_payload,
+	)
