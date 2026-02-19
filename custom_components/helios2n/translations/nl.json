@@ -3,6 +3,12 @@
         "abort": {
             "already_configured": "Apparaat reeds geconfigureerd"
         },
+        "error": {
+            "timeout_error": "Verbindingstime-out",
+            "api_error": "Device API heeft de referenties of aanvraag geweigerd",
+            "cannot_connect": "Kan geen verbinding maken met het apparaat",
+            "unknown": "Onverwachte fout"
+        },
         "step": {
             "user": {
                 "title": "2n/Helios Apparaat Configureren",
