@@ -50,7 +50,7 @@ class Helios2nPortBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        for port in self._device.data.ports:
-            if port.id == self._port_id:
-                return port.state
+        data = self.coordinator.data
+        if isinstance(data, dict):
+            return bool(data.get(self._port_id, False))
         return False
