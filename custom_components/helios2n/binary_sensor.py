@@ -54,7 +54,10 @@ class Helios2nPortBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        return self.coordinator.data.get(self._port_id, False)
+        data = self.coordinator.data
+        if isinstance(data, dict):
+            return bool(data.get(self._port_id, False))
+        return False
 
 
 class Helios2nCertificateMismatchBinarySensorEntity(BinarySensorEntity):
