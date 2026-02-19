@@ -1,6 +1,12 @@
 """Tests for utility functions."""
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from ..utils import sanitize_connection_data, get_ssl_certificate_fingerprint
+from ..utils import (
+	async_get_ssl_certificate_fingerprint,
+	get_ssl_certificate_fingerprint,
+	sanitize_connection_data,
+)
 
 
 def test_sanitize_connection_data_masks_credentials(connection_data):
@@ -60,3 +66,20 @@ def test_get_ssl_certificate_fingerprint_handles_invalid_host():
 	
 	# Should return None on connection error, not raise exception
 	assert result is None
+
+
+@pytest.mark.asyncio
+async def test_async_get_ssl_certificate_fingerprint_runs_in_executor():
+	"""Async helper should delegate blocking work to executor."""
+	hass = MagicMock()
+	hass.async_add_executor_job = AsyncMock(return_value="abc123")
+
+	result = await async_get_ssl_certificate_fingerprint(hass, "host.local", 443)
+
+	assert result == "abc123"
+	assert hass.async_add_executor_job.await_count == 1
+	assert hass.async_add_executor_job.await_args.args == (
+		get_ssl_certificate_fingerprint,
+		"host.local",
+		443,
+	)

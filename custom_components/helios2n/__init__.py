@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_CERTIFICATE_FINGERPRINT, SERVICE_RECAPTURE_CERTIFICATE, ATTR_CERT_MISMATCH
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
-from .utils import sanitize_connection_data, get_ssl_certificate_fingerprint
+from .utils import sanitize_connection_data, async_get_ssl_certificate_fingerprint
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
 LOG_POLL_TASK = "_log_poll_task"
@@ -77,9 +77,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 			raise ServiceValidationError("helios2n is not set up.")
 		
 		for entry_id, entry_data in domain.items():
-			entry = hass.config_entries.async_get_entry(entry_id)
-			if entry and not entry.data.get(CONF_VERIFY_SSL, True) and entry.data.get(CONF_PROTOCOL) == "https":
-				current_fingerprint = get_ssl_certificate_fingerprint(entry.data[CONF_HOST])
+				entry = hass.config_entries.async_get_entry(entry_id)
+				if entry and not entry.data.get(CONF_VERIFY_SSL, True) and entry.data.get(CONF_PROTOCOL) == "https":
+					current_fingerprint = await async_get_ssl_certificate_fingerprint(hass, entry.data[CONF_HOST])
 				if current_fingerprint:
 					hass.config_entries.async_update_entry(
 						entry,
@@ -138,7 +138,7 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 		
 		verify_ssl = config.data.get(CONF_VERIFY_SSL, True)
 		if not verify_ssl and config.data[CONF_PROTOCOL] == "https":
-			current_fingerprint = get_ssl_certificate_fingerprint(config.data[CONF_HOST])
+			current_fingerprint = await async_get_ssl_certificate_fingerprint(hass, config.data[CONF_HOST])
 			stored_fingerprint = config.data.get(CONF_CERTIFICATE_FINGERPRINT)
 			
 			if stored_fingerprint and current_fingerprint != stored_fingerprint:

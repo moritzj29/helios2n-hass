@@ -2,6 +2,8 @@
 import hashlib
 import socket
 import ssl
+
+from homeassistant.core import HomeAssistant
 from py2n import Py2NConnectionData
 
 
@@ -39,3 +41,10 @@ def get_ssl_certificate_fingerprint(host: str, port: int = 443) -> str | None:
 	except Exception:
 		pass
 	return None
+
+
+async def async_get_ssl_certificate_fingerprint(
+	hass: HomeAssistant, host: str, port: int = 443
+) -> str | None:
+	"""Get fingerprint in executor to avoid blocking Home Assistant's event loop."""
+	return await hass.async_add_executor_job(get_ssl_certificate_fingerprint, host, port)
