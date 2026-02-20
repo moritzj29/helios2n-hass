@@ -1,6 +1,12 @@
 # 2n-hass
-Home Assistant integration for 2n/Helios devices
-**Heavily WIP**
+
+![Tests](https://github.com/moritzj29/helios2n-hass/workflows/Tests/badge.svg)
+![Lint](https://github.com/moritzj29/helios2n-hass/workflows/Lint%20%26%20Format/badge.svg)
+[![codecov](https://codecov.io/gh/moritzj29/helios2n-hass/branch/main/graph/badge.svg)](https://codecov.io/gh/moritzj29/helios2n-hass)
+
+Home Assistant integration for 2N/Helios devices.
+
+Forked from https://github.com/SVD-NL/helios2n-hass. Single commits are taken from other forks of this integration.
 
 # Supported features
 Currently the following features are supported:
