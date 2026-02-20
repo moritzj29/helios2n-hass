@@ -9,8 +9,7 @@ api_call:
       required: true
       example: "switch/status"
       selector:
-        text:
-          type: "url"
+        text: {}
     method:
       # Whether or not field is required (default = false)
       required: true

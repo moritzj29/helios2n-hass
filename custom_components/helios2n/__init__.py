@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import re
 from asyncio import TimeoutError
+from urllib.parse import unquote, urlsplit
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse
 from homeassistant.config_entries import ConfigEntry
@@ -20,6 +22,80 @@ from .utils import sanitize_connection_data, async_get_ssl_certificate_fingerpri
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
 LOG_POLL_TASK = "_log_poll_task"
+ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
+ENDPOINT_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _validate_api_endpoint(endpoint: object | None) -> str:
+	"""Validate and normalize manual API endpoint.
+	
+	Accepts both `service/function` and `/api/service/function` formats.
+	"""
+	if not endpoint:
+		raise ServiceValidationError("Endpoint is required")
+	if not isinstance(endpoint, str):
+		raise ServiceValidationError("Endpoint must be a string")
+	endpoint = endpoint.strip()
+	if not endpoint:
+		raise ServiceValidationError("Endpoint is required")
+
+	split_result = urlsplit(endpoint)
+	if split_result.scheme or split_result.netloc:
+		raise ServiceValidationError("Endpoint must not include a URL scheme or hostname")
+	if split_result.fragment:
+		raise ServiceValidationError("Endpoint must not include URL fragments")
+
+	path = split_result.path.lstrip("/")
+	if path.startswith("api/"):
+		path = path[4:]
+
+	segments = [segment for segment in path.split("/") if segment]
+	if len(segments) < 2:
+		raise ServiceValidationError(
+			"Endpoint must include service and function, e.g. system/info"
+		)
+	for segment in segments:
+		decoded_segment = unquote(segment)
+		if decoded_segment in {".", ".."}:
+			raise ServiceValidationError("Endpoint path traversal is not allowed")
+		if not ENDPOINT_SEGMENT_PATTERN.fullmatch(decoded_segment):
+			raise ServiceValidationError(
+				"Endpoint path segments may only contain letters, numbers, '_' or '-'"
+			)
+
+	normalized_path = "/".join(segments)
+	if split_result.query:
+		return f"{normalized_path}?{split_result.query}"
+	return normalized_path
+
+
+def _validate_payload_consistency(data, json_payload) -> None:
+	"""Prevent ambiguous request bodies where both `data` and `json` are set."""
+	if data is not None and json_payload is not None:
+		raise ServiceValidationError("Provide either data or json, not both")
+
+
+def _validate_http_method(method: str) -> str:
+	"""Validate and normalize HTTP method for the manual API service call."""
+	if not isinstance(method, str):
+		raise ServiceValidationError("HTTP method must be a string")
+	normalized_method = method.upper()
+	if normalized_method not in ALLOWED_HTTP_METHODS:
+		raise ServiceValidationError(
+			f"Invalid HTTP method: {method}. Supported: GET, POST, PUT, DELETE"
+		)
+	return normalized_method
+
+
+def _validate_timeout(timeout: int | str) -> int:
+	"""Validate timeout range and convert to int."""
+	try:
+		timeout_int = int(timeout)
+	except (ValueError, TypeError) as err:
+		raise ServiceValidationError("Timeout must be a valid integer") from err
+	if timeout_int < 0 or timeout_int > 3600:
+		raise ServiceValidationError("Timeout must be between 0 and 3600 seconds")
+	return timeout_int
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 	
@@ -34,25 +110,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 		device = domain[entry]["_device"]
 
 		# Validate input parameters
-		method = call.data.get(ATTR_METHOD, DEFAULT_METHOD)
-		if method not in ["GET", "POST", "PUT", "DELETE"]:
-			raise ServiceValidationError(f"Invalid HTTP method: {method}. Supported: GET, POST, PUT, DELETE")
+		method = _validate_http_method(call.data.get(ATTR_METHOD, DEFAULT_METHOD))
 
-		endpoint = call.data.get(ATTR_ENDPOINT)
-		if not endpoint:
-			raise ServiceValidationError("Endpoint is required")
+		endpoint = _validate_api_endpoint(call.data.get(ATTR_ENDPOINT))
 
-		# Validate timeout is within reasonable range
-		timeout = call.data.get(ATTR_TIMEOUT, DEFAULT_TIMEOUT)
-		try:
-			timeout_int = int(timeout)
-			if timeout_int < 0 or timeout_int > 3600:
-				raise ServiceValidationError("Timeout must be between 0 and 3600 seconds")
-		except (ValueError, TypeError):
-			raise ServiceValidationError("Timeout must be a valid integer")
+		timeout_int = _validate_timeout(call.data.get(ATTR_TIMEOUT, DEFAULT_TIMEOUT))
 
 		data = call.data.get(ATTR_DATA)
 		json = call.data.get(ATTR_JSON)
+		_validate_payload_consistency(data, json)
 		result = {}
 		try: 
 			result = await device.api_request(endpoint, timeout_int, method, data, json)
