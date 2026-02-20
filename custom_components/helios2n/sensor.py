@@ -5,30 +5,8 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.components.sensor.const import SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.const import Platform
-
-from homeassistant.const import (
-    ATTR_ATTRIBUTION,
-    DEGREE,
-    PERCENTAGE,
-    UnitOfIrradiance,
-    UnitOfLength,
-    UnitOfPressure,
-    UnitOfSpeed,
-    UnitOfTemperature,
-    UnitOfTime,
-    UnitOfVolumetricFlux,
-)
-from homeassistant.components.sensor import (
-    SensorEntity,
-)
-
-from homeassistant.components.sensor.const import (
-    SensorDeviceClass,
-)
-
 
 from py2n import Py2NDevice
 
@@ -100,4 +78,3 @@ class Helios2nSensorEntity(CoordinatorEntity, SensorEntity):
             attributes = SENSOR_TYPES[self._type][7](self._device)
 
         return attributes
-
