@@ -1,15 +1,15 @@
 import logging
 from typing import Any
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL, CONF_VERIFY_SSL
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import selector
 import aiohttp
 import voluptuous as vol
 from py2n import Py2NDevice, Py2NConnectionData
 from py2n.exceptions import DeviceApiError
-from .const import DOMAIN
-from .utils import sanitize_connection_data
+from .const import DOMAIN, CONF_CERTIFICATE_FINGERPRINT, DEFAULT_VERIFY_SSL
+from .utils import sanitize_connection_data, get_ssl_certificate_fingerprint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,11 +64,18 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				await self.async_set_unique_id(device.data.serial)
 				self._abort_if_unique_id_configured()
 
+				# Get certificate fingerprint if using HTTPS with verify_ssl disabled
+				cert_fingerprint = None
+				if user_input[CONF_PROTOCOL] == "https" and not user_input[CONF_VERIFY_SSL]:
+					cert_fingerprint = get_ssl_certificate_fingerprint(user_input[CONF_HOST])
+
 				return self.async_create_entry(
 					title=device.data.name,
 					data={
 						CONF_HOST: user_input[CONF_HOST],
 						CONF_PROTOCOL: user_input[CONF_PROTOCOL],
+						CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
+						CONF_CERTIFICATE_FINGERPRINT: cert_fingerprint,
 					},
 					options={
 						CONF_USERNAME: user_input[CONF_USERNAME],
@@ -88,6 +95,10 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 							"options": ["http", "https"],
 							"mode": "dropdown",
 						},
+					}),
+				vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL):
+					selector({
+						"boolean": {},
 					}),
 			}),
 			errors=errors

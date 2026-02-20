@@ -8,3 +8,7 @@ DEFAULT_TIMEOUT = 10
 ATTR_DATA = "data"
 ATTR_JSON = "json"
 ATTR_ENTRY = "entry"
+CONF_CERTIFICATE_FINGERPRINT = "certificate_fingerprint"
+DEFAULT_VERIFY_SSL = True
+SERVICE_RECAPTURE_CERTIFICATE = "recapture_certificate"
+ATTR_CERT_MISMATCH = "certificate_mismatch"

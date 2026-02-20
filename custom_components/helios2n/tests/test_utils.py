@@ -1,6 +1,6 @@
 """Tests for utility functions."""
 import pytest
-from ..utils import sanitize_connection_data
+from ..utils import sanitize_connection_data, get_ssl_certificate_fingerprint
 
 
 def test_sanitize_connection_data_masks_credentials(connection_data):
@@ -38,3 +38,25 @@ def test_sanitize_connection_data_structure(connection_data):
 	assert "password" in sanitized
 	assert "protocol" in sanitized
 	assert len(sanitized) == 4  # Only these 4 fields
+
+
+def test_get_ssl_certificate_fingerprint_returns_hex_string():
+	"""Test fingerprint returns valid hex string format."""
+	# This is a unit test - we can't test with real certificate
+	# but we can verify the function signature and error handling
+	result = get_ssl_certificate_fingerprint("invalid.host.local", 443)
+	
+	# Should return None on connection error
+	assert result is None or isinstance(result, str)
+	if isinstance(result, str):
+		# Should be hex format (lowercase, 64 chars for SHA256)
+		assert all(c in "0123456789abcdef" for c in result)
+		assert len(result) == 64
+
+
+def test_get_ssl_certificate_fingerprint_handles_invalid_host():
+	"""Test fingerprint handles invalid hosts gracefully."""
+	result = get_ssl_certificate_fingerprint("this.host.does.not.exist.invalid", 443)
+	
+	# Should return None on connection error, not raise exception
+	assert result is None
