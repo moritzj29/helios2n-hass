@@ -75,6 +75,18 @@ Outputs will be added as a switch entity.
 Inputs will be added as a default sensor entity. You can use "show as" in the entity settings to change the entity type to the specific type of sensor (Tamper, door open, etc.)
 Inputs and outputs are disabled by default.
 
+## SSL Certificate Configuration
+For devices with self-signed certificates, you can disable SSL certificate verification during setup. To provide some level of protection against man-in-the-middle-attacks nevertheless, a hash of the self-signed certificate is stored and monitored for changes. Legitimate certificate changes require explicit user action to update.
+
+1. **During Setup**: Toggle "Verify SSL Certificate" to OFF for self-signed certificates
+2. **Certificate Monitoring**: A binary sensor (`binary_sensor.{device}_certificate_mismatch`) will show a "Problem" state if the certificate fingerprint changes
+3. **Updating Certificate**: If the certificate legitimately changes (e.g., device certificate renewal), update the stored fingerprint:
+   - Go to Developer Tools → Services
+   - Call `helios2n.recapture_certificate` to capture and store the new fingerprint
+   - The binary sensor will return to normal state
+
+**Note**: The integration will continue to work, even despite a fingerprint mismatch. Consider adding some automation in case a certificate mismatch is detected (notification, deactivate the integration, etc.).
+
 ## A note about switches and outputs
 Be careful when controlling the same output through a switch and directly at the same time.
 These can and will conflict with each other, and their statuses may desynchronise.

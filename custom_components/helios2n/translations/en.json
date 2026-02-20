@@ -11,7 +11,11 @@
                     "host": "Host",
                     "username": "Username",
                     "password": "Password",
-                    "protocol": "Protocol"
+                    "protocol": "Protocol",
+                    "verify_ssl": "Verify SSL Certificate"
+                },
+                "data_description": {
+                    "verify_ssl": "Disable for self-signed certificates. Certificate fingerprint will be monitored for changes."
                 }
             }
         }

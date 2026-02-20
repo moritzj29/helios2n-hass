@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, Platform
+from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, CONF_VERIFY_SSL, Platform
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from py2n import Py2NDevice, Py2NConnectionData
@@ -14,9 +14,9 @@ from py2n.exceptions import DeviceConnectionError, DeviceUnsupportedError, Devic
 
 _LOGGER = logging.getLogger(__name__)
 
-from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY
+from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_CERTIFICATE_FINGERPRINT, SERVICE_RECAPTURE_CERTIFICATE, ATTR_CERT_MISMATCH
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
-from .utils import sanitize_connection_data
+from .utils import sanitize_connection_data, get_ssl_certificate_fingerprint
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -68,6 +68,30 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 	hass.services.async_register(DOMAIN, "api_call", api_call, supports_response=SupportsResponse.OPTIONAL)
 
+	@callback
+	async def recapture_certificate(call: ServiceCall) -> None:
+		"""Recapture and update certificate fingerprint."""
+		domain = hass.data.get(DOMAIN, {})
+		if not domain:
+			raise ServiceValidationError("helios2n is not set up.")
+		
+		for entry_id, entry_data in domain.items():
+			entry = hass.config_entries.async_get_entry(entry_id)
+			if entry and not entry.data.get(CONF_VERIFY_SSL, True) and entry.data.get(CONF_PROTOCOL) == "https":
+				current_fingerprint = get_ssl_certificate_fingerprint(entry.data[CONF_HOST])
+				if current_fingerprint:
+					hass.config_entries.async_update_entry(
+						entry,
+						data={**entry.data, CONF_CERTIFICATE_FINGERPRINT: current_fingerprint}
+					)
+					entry_data[ATTR_CERT_MISMATCH] = False
+					_LOGGER.info("Certificate fingerprint updated for device %s", entry.data[CONF_HOST])
+					return
+		
+		raise ServiceValidationError("No HTTPS device with disabled SSL verification found.")
+
+	hass.services.async_register(DOMAIN, SERVICE_RECAPTURE_CERTIFICATE, recapture_certificate)
+
 	# Return boolean to indicate that initialization was successful.
 	return True
 
@@ -83,6 +107,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 		# Unregister services if this was the last entry
 		if len(hass.data[DOMAIN]) == 0:
 			hass.services.async_remove(DOMAIN, "api_call")
+			hass.services.async_remove(DOMAIN, SERVICE_RECAPTURE_CERTIFICATE)
 
 	return unload_ok
 
@@ -96,6 +121,29 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 			protocol=config.data[CONF_PROTOCOL]
 		)
 		_LOGGER.debug("Connecting to device: %s", sanitize_connection_data(connection_data))
+		
+		# Check SSL certificate fingerprint if verification is disabled
+		entry_data = hass.data.setdefault(DOMAIN, {}).setdefault(config.entry_id, {})
+		entry_data[ATTR_CERT_MISMATCH] = False
+		
+		verify_ssl = config.data.get(CONF_VERIFY_SSL, True)
+		if not verify_ssl and config.data[CONF_PROTOCOL] == "https":
+			current_fingerprint = get_ssl_certificate_fingerprint(config.data[CONF_HOST])
+			stored_fingerprint = config.data.get(CONF_CERTIFICATE_FINGERPRINT)
+			
+			if stored_fingerprint and current_fingerprint != stored_fingerprint:
+				entry_data[ATTR_CERT_MISMATCH] = True
+				_LOGGER.warning(
+					"Certificate fingerprint changed for device %s. "
+					"Old: %s, New: %s. "
+					"Call helios2n.recapture_certificate service to update.",
+					config.data[CONF_HOST],
+					stored_fingerprint[:16] if stored_fingerprint else "unknown",
+					current_fingerprint[:16] if current_fingerprint else "unknown"
+				)
+			else:
+				entry_data[ATTR_CERT_MISMATCH] = False
+		
 		device = await Py2NDevice.create(aiohttp_session, connection_data)
 	except Exception as err:
 		raise HomeAssistantError(f"Failed to connect to Helios/2N device: {err}") from err

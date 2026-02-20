@@ -5,12 +5,12 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 from homeassistant.const import Platform
 
 from py2n import Py2NDevice
 
-from .const import DOMAIN
+from .const import DOMAIN, ATTR_CERT_MISMATCH
 from .coordinator import Helios2nPortDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,6 +23,10 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
     for port in device.data.ports:
         if port.type == "input":
             entities.append(Helios2nPortBinarySensorEntity(coordinator, device, port.id))
+    
+    # Add certificate mismatch binary sensor
+    entities.append(Helios2nCertificateMismatchBinarySensorEntity(hass, device, config))
+    
     async_add_entities(entities)
     return True
 
@@ -50,7 +54,40 @@ class Helios2nPortBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
-        for port in self._device.data.ports:
-            if port.id == self._port_id:
-                return port.state
-        return False
+        return self.coordinator.data.get(self._port_id, False)
+
+
+class Helios2nCertificateMismatchBinarySensorEntity(BinarySensorEntity):
+    """Binary sensor for certificate fingerprint mismatch."""
+    
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    
+    def __init__(self, hass: HomeAssistant, device: Py2NDevice, config: ConfigType) -> None:
+        self.hass = hass
+        self._device = device
+        self._config = config
+        self._attr_unique_id = f"{self._device.data.serial}_certificate_mismatch"
+        self._attr_name = "Certificate Mismatch"
+    
+    @property
+    def is_on(self) -> bool:
+        """Return True if certificate fingerprint doesn't match stored hash."""
+        entry_data = self.hass.data[DOMAIN][self._config.entry_id]
+        return entry_data.get(ATTR_CERT_MISMATCH, False)
+    
+    @property
+    def available(self) -> bool:
+        """Entity available if SSL verification is disabled."""
+        return not self._config.data.get("verify_ssl", True) and self._config.data.get("protocol") == "https"
+    
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
+            name= self._device.data.name,
+            manufacturer = "2N/Helios",
+            model = self._device.data.model,
+            hw_version = self._device.data.hardware,
+            sw_version = self._device.data.firmware,
+        )

@@ -11,7 +11,11 @@
                     "host": "Host",
                     "username": "Gebruikersnaam",
                     "password": "Wachtwoord",
-                    "protocol": "Protocol"
+                    "protocol": "Protocol",
+                    "verify_ssl": "SSL-certificaat verifiëren"
+                },
+                "data_description": {
+                    "verify_ssl": "Schakel uit voor zelfondertekende certificaten. De certificaatvingerafdruk wordt gecontroleerd op wijzigingen."
                 }
             }
         }
