@@ -1,4 +1,5 @@
 """Tests for coordinator return-data contracts and binary sensor safety."""
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -51,11 +52,12 @@ async def test_sensor_coordinator_returns_uptime_value():
     """Sensor coordinator should return structured data."""
     coordinator = object.__new__(Helios2nSensorDataUpdateCoordinator)
     coordinator.device = AsyncMock()
-    coordinator.device.data = SimpleNamespace(uptime=12345)
+    boot_time = datetime(2026, 2, 20, 8, 0, 0, tzinfo=UTC)
+    coordinator.device.data = SimpleNamespace(uptime=boot_time)
 
     result = await coordinator._async_update_data()
 
-    assert result == {"uptime": 12345}
+    assert result == {"uptime": boot_time}
 
 
 def test_binary_sensor_is_off_when_coordinator_data_is_none():
