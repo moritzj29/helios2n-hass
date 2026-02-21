@@ -9,7 +9,7 @@ from homeassistant.const import Platform
 
 from py2n import Py2NDevice
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
 from .coordinator import Helios2nSwitchDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,10 +18,15 @@ PLATFORM = Platform.LOCK
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback):
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     coordinator: Helios2nSwitchDataUpdateCoordinator = hass.data[DOMAIN][config.entry_id][PLATFORM]["coordinator"]
+    config_data = getattr(config, "data", {})
+    disable_control_entities = config_data.get(
+        CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
+    )
     entities = []
-    for switch in device.data.switches:
-        if switch.enabled and switch.mode == "bistable":
-            entities.append(Helios2nLockEntity(coordinator, device, switch.id))
+    if not disable_control_entities:
+        for switch in device.data.switches:
+            if switch.enabled and switch.mode == "bistable":
+                entities.append(Helios2nLockEntity(coordinator, device, switch.id))
     async_add_entities(entities)
     return True
 

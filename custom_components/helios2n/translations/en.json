@@ -26,7 +26,9 @@
                     "password": "Password",
                     "protocol": "Protocol",
                     "auth_method": "API Authentication",
-                    "verify_ssl": "Verify SSL Certificate"
+                    "verify_ssl": "Verify SSL Certificate",
+                    "create_read_only_status_entities": "Create Read-Only Status Entities",
+                    "disable_control_entities": "Disable Control Entities"
                 },
                 "data_description": {
                     "host": "IP address or hostname of your 2N device (for example 192.168.1.25).",
@@ -34,7 +36,9 @@
                     "password": "HTTP API account password for the configured user.",
                     "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
                     "auth_method": "Authentication method used by the 2N HTTP API account (Basic or Digest).",
-                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes."
+                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes.",
+                    "create_read_only_status_entities": "Expose additional read-only entities for switch, relay and output status.",
+                    "disable_control_entities": "Hide lock/button/switch control entities by default."
                 }
             }
         }
@@ -50,7 +54,9 @@
                     "password": "Password",
                     "protocol": "Protocol",
                     "auth_method": "API Authentication",
-                    "verify_ssl": "Verify SSL Certificate"
+                    "verify_ssl": "Verify SSL Certificate",
+                    "create_read_only_status_entities": "Create Read-Only Status Entities",
+                    "disable_control_entities": "Disable Control Entities"
                 },
                 "data_description": {
                     "host": "IP address or hostname of your 2N device (for example 192.168.1.25).",
@@ -58,7 +64,9 @@
                     "password": "Updated HTTP API account password configured on the device.",
                     "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
                     "auth_method": "Authentication method used by the 2N HTTP API account (Basic or Digest).",
-                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes."
+                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes.",
+                    "create_read_only_status_entities": "Expose additional read-only entities for switch, relay and output status.",
+                    "disable_control_entities": "Hide lock/button/switch control entities by default."
                 }
             }
         }
