@@ -6,6 +6,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
+from homeassistant.const import CONF_PROTOCOL, CONF_VERIFY_SSL
 from homeassistant.const import Platform
 
 from py2n import Py2NDevice
@@ -24,8 +25,9 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
         if port.type == "input":
             entities.append(Helios2nPortBinarySensorEntity(coordinator, device, port.id))
     
-    # Add certificate mismatch binary sensor
-    entities.append(Helios2nCertificateMismatchBinarySensorEntity(hass, device, config))
+    # Add certificate fingerprint status only for HTTPS with SSL verification disabled.
+    if config.data.get(CONF_PROTOCOL) == "https" and not config.data.get(CONF_VERIFY_SSL, True):
+        entities.append(Helios2nCertificateMismatchBinarySensorEntity(hass, device, config))
     
     async_add_entities(entities)
     return True
@@ -71,7 +73,7 @@ class Helios2nCertificateMismatchBinarySensorEntity(BinarySensorEntity):
         self._device = device
         self._config = config
         self._attr_unique_id = f"{self._device.data.serial}_certificate_mismatch"
-        self._attr_name = "Certificate Mismatch"
+        self._attr_name = "Certificate Fingerprint"
     
     @property
     def is_on(self) -> bool:
@@ -82,7 +84,10 @@ class Helios2nCertificateMismatchBinarySensorEntity(BinarySensorEntity):
     @property
     def available(self) -> bool:
         """Entity available if SSL verification is disabled."""
-        return not self._config.data.get("verify_ssl", True) and self._config.data.get("protocol") == "https"
+        return (
+            not self._config.data.get(CONF_VERIFY_SSL, True)
+            and self._config.data.get(CONF_PROTOCOL) == "https"
+        )
     
     @property
     def device_info(self) -> DeviceInfo:
