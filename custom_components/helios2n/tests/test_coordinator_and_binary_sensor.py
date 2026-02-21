@@ -1,9 +1,11 @@
 """Tests for coordinator return-data contracts and binary sensor safety."""
+import asyncio
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from ..binary_sensor import (
     Helios2nCertificateMismatchBinarySensorEntity,
@@ -12,6 +14,9 @@ from ..binary_sensor import (
 )
 from ..const import DOMAIN
 from ..coordinator import (
+    API_ENDPOINT_IO_STATUS,
+    API_ENDPOINT_SWITCH_STATUS,
+    API_ENDPOINT_SYSTEM_STATUS,
     Helios2nPortDataUpdateCoordinator,
     Helios2nSensorDataUpdateCoordinator,
     Helios2nSwitchDataUpdateCoordinator,
@@ -63,6 +68,46 @@ async def test_sensor_coordinator_returns_uptime_value():
     result = await coordinator._async_update_data()
 
     assert result == {"uptime": boot_time}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("coordinator_cls", "setup_device", "endpoint"),
+    [
+        (
+            Helios2nPortDataUpdateCoordinator,
+            lambda: SimpleNamespace(
+                update_port_status=AsyncMock(side_effect=asyncio.TimeoutError()),
+                data=SimpleNamespace(host="192.168.1.25", ports=[]),
+            ),
+            API_ENDPOINT_IO_STATUS,
+        ),
+        (
+            Helios2nSwitchDataUpdateCoordinator,
+            lambda: SimpleNamespace(
+                update_switch_status=AsyncMock(side_effect=asyncio.TimeoutError()),
+                get_switch=MagicMock(return_value=False),
+                data=SimpleNamespace(host="192.168.1.25", switches=[]),
+            ),
+            API_ENDPOINT_SWITCH_STATUS,
+        ),
+        (
+            Helios2nSensorDataUpdateCoordinator,
+            lambda: SimpleNamespace(
+                update_system_status=AsyncMock(side_effect=asyncio.TimeoutError()),
+                data=SimpleNamespace(host="192.168.1.25", uptime=datetime.now(UTC)),
+            ),
+            API_ENDPOINT_SYSTEM_STATUS,
+        ),
+    ],
+)
+async def test_coordinator_timeout_includes_host_and_endpoint(coordinator_cls, setup_device, endpoint):
+    """Timeout errors should include host and API endpoint details."""
+    coordinator = object.__new__(coordinator_cls)
+    coordinator.device = setup_device()
+
+    with pytest.raises(UpdateFailed, match=f"192.168.1.25.*{endpoint}"):
+        await coordinator._async_update_data()
 
 
 def test_binary_sensor_is_off_when_coordinator_data_is_none():
