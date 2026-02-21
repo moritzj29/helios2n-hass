@@ -10,6 +10,8 @@
             "authorization_required": "Authorization required. Verify the API username and password.",
             "insufficient_privileges": "Insufficient privileges for this account. Update HTTP API permissions on the device.",
             "invalid_authentication_method": "Unsupported authentication method configured on the device. Use Basic authentication for HTTP API.",
+            "invalid_auth_method": "Invalid API authentication method. Choose Basic or Digest.",
+            "unsupported_auth_method": "Digest authentication is not supported by the installed py2n library.",
             "invalid_protocol": "Invalid protocol selection. Choose HTTP or HTTPS.",
             "cannot_connect": "Failed to connect to the device",
             "unknown": "Unexpected error"
@@ -23,6 +25,7 @@
                     "username": "Username",
                     "password": "Password",
                     "protocol": "Protocol",
+                    "auth_method": "API Authentication",
                     "verify_ssl": "Verify SSL Certificate"
                 },
                 "data_description": {
@@ -30,6 +33,7 @@
                     "username": "HTTP API account username configured on the device.",
                     "password": "HTTP API account password for the configured user.",
                     "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
+                    "auth_method": "Authentication method used by the 2N HTTP API account (Basic or Digest).",
                     "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes."
                 }
             }
@@ -45,6 +49,7 @@
                     "username": "Username",
                     "password": "Password",
                     "protocol": "Protocol",
+                    "auth_method": "API Authentication",
                     "verify_ssl": "Verify SSL Certificate"
                 },
                 "data_description": {
@@ -52,6 +57,7 @@
                     "username": "Updated HTTP API account username configured on the device.",
                     "password": "Updated HTTP API account password configured on the device.",
                     "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
+                    "auth_method": "Authentication method used by the 2N HTTP API account (Basic or Digest).",
                     "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes."
                 }
             }

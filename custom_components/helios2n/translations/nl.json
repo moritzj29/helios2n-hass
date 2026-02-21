@@ -10,6 +10,8 @@
             "authorization_required": "Autorisatie vereist. Controleer de API-gebruikersnaam en het wachtwoord.",
             "insufficient_privileges": "Onvoldoende rechten voor dit account. Pas de HTTP API-rechten op het apparaat aan.",
             "invalid_authentication_method": "Niet-ondersteunde authenticatiemethode op het apparaat. Gebruik Basic-authenticatie voor de HTTP API.",
+            "invalid_auth_method": "Ongeldige API-authenticatiemethode. Kies Basic of Digest.",
+            "unsupported_auth_method": "Digest-authenticatie wordt niet ondersteund door de geïnstalleerde py2n-bibliotheek.",
             "invalid_protocol": "Ongeldige protocolkeuze. Kies HTTP of HTTPS.",
             "cannot_connect": "Kan geen verbinding maken met het apparaat",
             "unknown": "Onverwachte fout"
@@ -23,6 +25,7 @@
                     "username": "Gebruikersnaam",
                     "password": "Wachtwoord",
                     "protocol": "Protocol",
+                    "auth_method": "API-authenticatie",
                     "verify_ssl": "SSL-certificaat verifiëren"
                 },
                 "data_description": {
@@ -30,6 +33,7 @@
                     "username": "Gebruikersnaam van het HTTP API-account dat op het apparaat is ingesteld.",
                     "password": "Wachtwoord van het HTTP API-account voor de ingestelde gebruiker.",
                     "protocol": "Gebruik indien mogelijk HTTPS. Gebruik HTTP alleen op vertrouwde lokale netwerken.",
+                    "auth_method": "Authenticatiemethode van het 2N HTTP API-account (Basic of Digest).",
                     "verify_ssl": "Schakel alleen uit bij zelfondertekende certificaten. De certificaatvingerafdruk wordt dan bewaakt op wijzigingen."
                 }
             }
@@ -45,6 +49,7 @@
                     "username": "Gebruikersnaam",
                     "password": "Wachtwoord",
                     "protocol": "Protocol",
+                    "auth_method": "API-authenticatie",
                     "verify_ssl": "SSL-certificaat verifiëren"
                 },
                 "data_description": {
@@ -52,6 +57,7 @@
                     "username": "Bijgewerkte gebruikersnaam van het HTTP API-account op het apparaat.",
                     "password": "Bijgewerkt wachtwoord van het HTTP API-account op het apparaat.",
                     "protocol": "Gebruik indien mogelijk HTTPS. Gebruik HTTP alleen op vertrouwde lokale netwerken.",
+                    "auth_method": "Authenticatiemethode van het 2N HTTP API-account (Basic of Digest).",
                     "verify_ssl": "Schakel alleen uit bij zelfondertekende certificaten. De certificaatvingerafdruk wordt dan bewaakt op wijzigingen."
                 }
             }
