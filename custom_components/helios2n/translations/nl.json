@@ -38,15 +38,21 @@
     "options": {
         "step": {
             "init": {
-                "title": "Referenties Bijwerken",
-                "description": "Werk uw apparaatreferenties bij",
+                "title": "Apparaatverbinding Bijwerken",
+                "description": "Werk apparaat-host, protocol, SSL-verificatie en API-referenties bij",
                 "data": {
+                    "host": "Host",
                     "username": "Gebruikersnaam",
-                    "password": "Wachtwoord"
+                    "password": "Wachtwoord",
+                    "protocol": "Protocol",
+                    "verify_ssl": "SSL-certificaat verifiëren"
                 },
                 "data_description": {
+                    "host": "IP-adres of hostnaam van uw 2N-apparaat (bijvoorbeeld 192.168.1.25).",
                     "username": "Bijgewerkte gebruikersnaam van het HTTP API-account op het apparaat.",
-                    "password": "Bijgewerkt wachtwoord van het HTTP API-account op het apparaat."
+                    "password": "Bijgewerkt wachtwoord van het HTTP API-account op het apparaat.",
+                    "protocol": "Gebruik indien mogelijk HTTPS. Gebruik HTTP alleen op vertrouwde lokale netwerken.",
+                    "verify_ssl": "Schakel alleen uit bij zelfondertekende certificaten. De certificaatvingerafdruk wordt dan bewaakt op wijzigingen."
                 }
             }
         }

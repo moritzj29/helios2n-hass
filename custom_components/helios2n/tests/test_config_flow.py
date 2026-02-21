@@ -8,7 +8,7 @@ import pytest
 from py2n.exceptions import ApiError, DeviceApiError
 
 from .. import config_flow as flow_module
-from ..config_flow import Helios2nConfigFlow
+from ..config_flow import Helios2nConfigFlow, Helios2nOptionsFlow
 
 VALID_USER_INPUT = {
 	"host": "192.168.1.25",
@@ -25,6 +25,30 @@ def _new_flow(mock_hass) -> Helios2nConfigFlow:
 	flow.async_set_unique_id = AsyncMock()
 	flow._abort_if_unique_id_configured = MagicMock()
 	return flow
+
+
+def _new_options_flow(mock_hass) -> tuple[Helios2nOptionsFlow, MagicMock]:
+	config_entry = MagicMock()
+	config_entry.entry_id = "entry-1"
+	config_entry.domain = "helios2n"
+	config_entry.data = {
+		"host": "192.168.1.10",
+		"protocol": "https",
+		"verify_ssl": True,
+		"certificate_fingerprint": None,
+	}
+	config_entry.options = {
+		"username": "old_user",
+		"password": "old_pass",
+	}
+	mock_hass.config_entries.async_get_known_entry = MagicMock(return_value=config_entry)
+	mock_hass.config_entries.async_update_entry = MagicMock()
+	mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
+
+	flow = Helios2nOptionsFlow()
+	flow.hass = mock_hass
+	flow.handler = config_entry.entry_id
+	return flow, config_entry
 
 
 @pytest.mark.asyncio
@@ -244,3 +268,68 @@ async def test_async_step_user_logs_invalid_protocol_with_sanitized_payload(mock
 		"ftp",
 		expected_payload,
 	)
+
+
+@pytest.mark.asyncio
+async def test_options_flow_updates_all_connection_parameters(mock_hass):
+	"""Options flow should update host/protocol/verify_ssl and credentials."""
+	flow, config_entry = _new_options_flow(mock_hass)
+	user_input = {
+		"host": "192.168.1.55",
+		"username": "new_user",
+		"password": "new_pass",
+		"protocol": "HTTPS",
+		"verify_ssl": False,
+	}
+	mock_device = SimpleNamespace(data=SimpleNamespace(name="Door Intercom"))
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(return_value=mock_device),
+	), patch.object(
+		flow_module,
+		"async_get_ssl_certificate_fingerprint",
+		new=AsyncMock(return_value="cafebabe"),
+	) as fingerprint_mock:
+		result = await flow.async_step_init(user_input)
+
+	assert result["type"] == "create_entry"
+	assert result["title"] == "Door Intercom"
+	assert result["data"] == {}
+	mock_hass.config_entries.async_update_entry.assert_called_once_with(
+		config_entry,
+		data={
+			**config_entry.data,
+			"host": "192.168.1.55",
+			"protocol": "https",
+			"verify_ssl": False,
+			"certificate_fingerprint": "cafebabe",
+		},
+		options={
+			**config_entry.options,
+			"username": "new_user",
+			"password": "new_pass",
+		},
+	)
+	mock_hass.config_entries.async_reload.assert_awaited_once_with(config_entry.entry_id)
+	assert fingerprint_mock.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_options_flow_returns_invalid_protocol_error(mock_hass):
+	"""Options flow should reject invalid protocol values."""
+	flow, _ = _new_options_flow(mock_hass)
+	user_input = {
+		"host": "192.168.1.55",
+		"username": "new_user",
+		"password": "new_pass",
+		"protocol": "ftp",
+		"verify_ssl": True,
+	}
+
+	result = await flow.async_step_init(user_input)
+
+	assert result["type"] == "form"
+	assert result["step_id"] == "init"
+	assert result["errors"]["base"] == "invalid_protocol"
