@@ -15,6 +15,7 @@ VALID_USER_INPUT = {
 	"username": "homeassistant",
 	"password": "secret",
 	"protocol": "https",
+	"auth_method": "basic",
 	"verify_ssl": False,
 }
 
@@ -34,6 +35,7 @@ def _new_options_flow(mock_hass) -> tuple[Helios2nOptionsFlow, MagicMock]:
 	config_entry.data = {
 		"host": "192.168.1.10",
 		"protocol": "https",
+		"auth_method": "basic",
 		"verify_ssl": True,
 		"certificate_fingerprint": None,
 	}
@@ -148,6 +150,7 @@ async def test_async_step_user_creates_entry_and_stores_fingerprint(mock_hass):
 	assert result["title"] == "Door Intercom"
 	assert result["data"]["host"] == VALID_USER_INPUT["host"]
 	assert result["data"]["protocol"] == "https"
+	assert result["data"]["auth_method"] == "basic"
 	assert result["data"]["verify_ssl"] is False
 	assert result["data"]["certificate_fingerprint"] == "deadbeef"
 	assert result["options"]["username"] == VALID_USER_INPUT["username"]
@@ -199,6 +202,7 @@ async def test_async_step_user_logs_error_on_failure(mock_hass):
 		"username": "***",
 		"password": "***",
 		"protocol": VALID_USER_INPUT["protocol"],
+		"auth_method": VALID_USER_INPUT["auth_method"],
 		"verify_ssl": VALID_USER_INPUT["verify_ssl"],
 	}
 
@@ -227,6 +231,7 @@ async def test_async_step_user_logs_info_on_success(mock_hass):
 		"username": "***",
 		"password": "***",
 		"protocol": user_input["protocol"],
+		"auth_method": user_input["auth_method"],
 		"verify_ssl": True,
 	}
 
@@ -254,6 +259,7 @@ async def test_async_step_user_logs_invalid_protocol_with_sanitized_payload(mock
 		"username": "***",
 		"password": "***",
 		"protocol": "ftp",
+		"auth_method": user_input["auth_method"],
 		"verify_ssl": user_input["verify_ssl"],
 	}
 
@@ -279,6 +285,7 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 		"username": "new_user",
 		"password": "new_pass",
 		"protocol": "HTTPS",
+		"auth_method": "basic",
 		"verify_ssl": False,
 	}
 	mock_device = SimpleNamespace(data=SimpleNamespace(name="Door Intercom"))
@@ -303,6 +310,7 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 			**config_entry.data,
 			"host": "192.168.1.55",
 			"protocol": "https",
+			"auth_method": "basic",
 			"verify_ssl": False,
 			"certificate_fingerprint": "cafebabe",
 		},
@@ -325,6 +333,7 @@ async def test_options_flow_returns_invalid_protocol_error(mock_hass):
 		"username": "new_user",
 		"password": "new_pass",
 		"protocol": "ftp",
+		"auth_method": "basic",
 		"verify_ssl": True,
 	}
 
@@ -333,3 +342,15 @@ async def test_options_flow_returns_invalid_protocol_error(mock_hass):
 	assert result["type"] == "form"
 	assert result["step_id"] == "init"
 	assert result["errors"]["base"] == "invalid_protocol"
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_rejects_invalid_auth_method(mock_hass):
+	"""Invalid auth method values should be rejected with explicit error."""
+	flow = _new_flow(mock_hass)
+	user_input = {**VALID_USER_INPUT, "auth_method": "token"}
+
+	result = await flow.async_step_user(user_input)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "invalid_auth_method"
