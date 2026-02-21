@@ -38,15 +38,21 @@
     "options": {
         "step": {
             "init": {
-                "title": "Update Credentials",
-                "description": "Update your device credentials",
+                "title": "Update Device Connection",
+                "description": "Update device host, protocol, SSL verification, and API credentials",
                 "data": {
+                    "host": "Host",
                     "username": "Username",
-                    "password": "Password"
+                    "password": "Password",
+                    "protocol": "Protocol",
+                    "verify_ssl": "Verify SSL Certificate"
                 },
                 "data_description": {
+                    "host": "IP address or hostname of your 2N device (for example 192.168.1.25).",
                     "username": "Updated HTTP API account username configured on the device.",
-                    "password": "Updated HTTP API account password configured on the device."
+                    "password": "Updated HTTP API account password configured on the device.",
+                    "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
+                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes."
                 }
             }
         }
