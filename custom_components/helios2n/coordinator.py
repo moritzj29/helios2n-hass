@@ -16,7 +16,7 @@ class Helios2nPortDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Helios2n Port Update",
-            update_interval=timedelta(seconds=10)
+            update_interval=timedelta(seconds=30)
         )
         self.device = device
 
@@ -34,7 +34,7 @@ class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Helios2n Switch Update",
-            update_interval=timedelta(seconds=10)
+            update_interval=timedelta(seconds=30)
         )
         self.device = device
 
@@ -52,7 +52,7 @@ class Helios2nSensorDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Helios2n Sensor Update",
-            update_interval=timedelta(seconds=10)
+            update_interval=timedelta(seconds=30)
         )
         self.device = device
 
