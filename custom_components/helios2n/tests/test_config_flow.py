@@ -17,6 +17,8 @@ VALID_USER_INPUT = {
 	"protocol": "https",
 	"auth_method": "basic",
 	"verify_ssl": False,
+	"create_read_only_status_entities": False,
+	"disable_control_entities": False,
 }
 
 
@@ -37,6 +39,8 @@ def _new_options_flow(mock_hass) -> tuple[Helios2nOptionsFlow, MagicMock]:
 		"protocol": "https",
 		"auth_method": "basic",
 		"verify_ssl": True,
+		"create_read_only_status_entities": False,
+		"disable_control_entities": False,
 		"certificate_fingerprint": None,
 	}
 	config_entry.options = {
@@ -152,6 +156,8 @@ async def test_async_step_user_creates_entry_and_stores_fingerprint(mock_hass):
 	assert result["data"]["protocol"] == "https"
 	assert result["data"]["auth_method"] == "basic"
 	assert result["data"]["verify_ssl"] is False
+	assert result["data"]["create_read_only_status_entities"] is False
+	assert result["data"]["disable_control_entities"] is False
 	assert result["data"]["certificate_fingerprint"] == "deadbeef"
 	assert result["options"]["username"] == VALID_USER_INPUT["username"]
 	assert result["options"]["password"] == VALID_USER_INPUT["password"]
@@ -304,6 +310,8 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 		"protocol": "HTTPS",
 		"auth_method": "basic",
 		"verify_ssl": False,
+		"create_read_only_status_entities": True,
+		"disable_control_entities": True,
 	}
 	mock_device = SimpleNamespace(data=SimpleNamespace(name="Door Intercom"))
 
@@ -332,6 +340,8 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 			"protocol": "https",
 			"auth_method": "basic",
 			"verify_ssl": False,
+			"create_read_only_status_entities": True,
+			"disable_control_entities": True,
 			"certificate_fingerprint": "cafebabe",
 		},
 		options={

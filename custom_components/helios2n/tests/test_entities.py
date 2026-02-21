@@ -90,7 +90,7 @@ async def test_lock_setup_adds_only_bistable_switches():
 	coordinator = DummyCoordinator()
 	hass = MagicMock()
 	hass.data = {DOMAIN: {"entry-1": {"_device": device, "lock": {"coordinator": coordinator}}}}
-	config = SimpleNamespace(entry_id="entry-1")
+	config = SimpleNamespace(entry_id="entry-1", data={})
 	async_add_entities = MagicMock()
 
 	await setup_lock(hass, config, async_add_entities)
@@ -139,7 +139,7 @@ async def test_switch_setup_adds_only_output_ports():
 	coordinator = DummyCoordinator()
 	hass = MagicMock()
 	hass.data = {DOMAIN: {"entry-1": {"_device": device, "switch": {"coordinator": coordinator}}}}
-	config = SimpleNamespace(entry_id="entry-1")
+	config = SimpleNamespace(entry_id="entry-1", data={})
 	async_add_entities = MagicMock()
 
 	await setup_switch(hass, config, async_add_entities)
@@ -147,6 +147,42 @@ async def test_switch_setup_adds_only_output_ports():
 	added_entities = async_add_entities.call_args.args[0]
 	assert len(added_entities) == 1
 	assert isinstance(added_entities[0], Helios2nPortSwitchEntity)
+
+
+@pytest.mark.asyncio
+async def test_lock_and_switch_setup_skip_control_entities_when_disabled():
+	"""Lock/switch control entities should not be created when control is disabled."""
+	device = MagicMock()
+	device.data = SimpleNamespace(
+		serial="SER",
+		name="N",
+		mac="M",
+		model="X",
+		hardware="H",
+		firmware="F",
+		switches=[SimpleNamespace(id=1, enabled=True, mode="bistable")],
+		ports=[SimpleNamespace(id="relay1", type="output", state=False)],
+	)
+	coordinator = DummyCoordinator()
+	hass = MagicMock()
+	hass.data = {
+		DOMAIN: {
+			"entry-1": {
+				"_device": device,
+				"lock": {"coordinator": coordinator},
+				"switch": {"coordinator": coordinator},
+			}
+		}
+	}
+	config = SimpleNamespace(entry_id="entry-1", data={"disable_control_entities": True})
+	async_add_entities_lock = MagicMock()
+	async_add_entities_switch = MagicMock()
+
+	await setup_lock(hass, config, async_add_entities_lock)
+	await setup_switch(hass, config, async_add_entities_switch)
+
+	assert async_add_entities_lock.call_args.args[0] == []
+	assert async_add_entities_switch.call_args.args[0] == []
 
 
 @pytest.mark.asyncio

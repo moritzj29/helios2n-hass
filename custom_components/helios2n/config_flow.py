@@ -10,10 +10,14 @@ import voluptuous as vol
 from py2n import Py2NDevice
 from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 from .const import (
+    CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+    CONF_DISABLE_CONTROL_ENTITIES,
     DOMAIN,
     CONF_AUTH_METHOD,
     CONF_CERTIFICATE_FINGERPRINT,
     DEFAULT_AUTH_METHOD,
+    DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+    DEFAULT_DISABLE_CONTROL_ENTITIES,
     DEFAULT_VERIFY_SSL,
     SUPPORTED_AUTH_METHODS,
 )
@@ -43,6 +47,8 @@ def _build_user_form_schema(
     protocol_default: str = DEFAULT_PROTOCOL,
     auth_method_default: str = DEFAULT_AUTH_METHOD,
     verify_ssl_default: bool = DEFAULT_VERIFY_SSL,
+    create_read_only_status_entities_default: bool = DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+    disable_control_entities_default: bool = DEFAULT_DISABLE_CONTROL_ENTITIES,
 ) -> vol.Schema:
     """Build schema for connection settings forms."""
     return vol.Schema({
@@ -67,6 +73,14 @@ def _build_user_form_schema(
             selector({
                 "boolean": {},
             }),
+        vol.Required(
+            CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+            default=create_read_only_status_entities_default,
+        ): selector({"boolean": {}}),
+        vol.Required(
+            CONF_DISABLE_CONTROL_ENTITIES,
+            default=disable_control_entities_default,
+        ): selector({"boolean": {}}),
     })
 
 
@@ -226,6 +240,14 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
                         protocol_default=user_input.get(CONF_PROTOCOL, DEFAULT_PROTOCOL),
                         auth_method_default=user_input.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD),
                         verify_ssl_default=user_input[CONF_VERIFY_SSL],
+                        create_read_only_status_entities_default=user_input.get(
+                            CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+                            DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+                        ),
+                        disable_control_entities_default=user_input.get(
+                            CONF_DISABLE_CONTROL_ENTITIES,
+                            DEFAULT_DISABLE_CONTROL_ENTITIES,
+                        ),
                     ),
                     errors={"base": error_key},
                 )
@@ -245,6 +267,10 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
                     CONF_PROTOCOL: protocol,
                     CONF_AUTH_METHOD: auth_method,
                     CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
+                    CONF_CREATE_READ_ONLY_STATUS_ENTITIES: user_input[
+                        CONF_CREATE_READ_ONLY_STATUS_ENTITIES
+                    ],
+                    CONF_DISABLE_CONTROL_ENTITIES: user_input[CONF_DISABLE_CONTROL_ENTITIES],
                     CONF_CERTIFICATE_FINGERPRINT: cert_fingerprint,
                 },
                 options={
@@ -277,6 +303,14 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
                 protocol_default=self.config_entry.data.get(CONF_PROTOCOL, DEFAULT_PROTOCOL),
                 auth_method_default=self.config_entry.data.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD),
                 verify_ssl_default=self.config_entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+                create_read_only_status_entities_default=self.config_entry.data.get(
+                    CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+                    DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+                ),
+                disable_control_entities_default=self.config_entry.data.get(
+                    CONF_DISABLE_CONTROL_ENTITIES,
+                    DEFAULT_DISABLE_CONTROL_ENTITIES,
+                ),
             ),
         )
 
@@ -315,6 +349,10 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_PROTOCOL: protocol,
                         CONF_AUTH_METHOD: auth_method,
                         CONF_VERIFY_SSL: verify_ssl,
+                        CONF_CREATE_READ_ONLY_STATUS_ENTITIES: user_input[
+                            CONF_CREATE_READ_ONLY_STATUS_ENTITIES
+                        ],
+                        CONF_DISABLE_CONTROL_ENTITIES: user_input[CONF_DISABLE_CONTROL_ENTITIES],
                         CONF_CERTIFICATE_FINGERPRINT: cert_fingerprint,
                     },
                     options={
