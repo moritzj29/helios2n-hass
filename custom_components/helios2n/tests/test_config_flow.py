@@ -320,7 +320,10 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 
 	assert result["type"] == "create_entry"
 	assert result["title"] == "Door Intercom"
-	assert result["data"] == {}
+	assert result["data"] == {
+		"username": "new_user",
+		"password": "new_pass",
+	}
 	mock_hass.config_entries.async_update_entry.assert_called_once_with(
 		config_entry,
 		data={
