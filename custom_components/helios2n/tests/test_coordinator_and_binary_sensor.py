@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ..binary_sensor import Helios2nPortBinarySensorEntity
+from ..binary_sensor import (
+    Helios2nCertificateMismatchBinarySensorEntity,
+    Helios2nPortBinarySensorEntity,
+    async_setup_entry as setup_binary_sensor,
+)
+from ..const import DOMAIN
 from ..coordinator import (
     Helios2nPortDataUpdateCoordinator,
     Helios2nSensorDataUpdateCoordinator,
@@ -76,3 +81,57 @@ def test_binary_sensor_reads_state_from_coordinator_mapping():
     entity._port_id = "input1"
 
     assert entity.is_on is True
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_setup_adds_certificate_entity_only_for_https_without_ssl_verify():
+    """Certificate fingerprint entity should be added only for HTTPS with verify_ssl disabled."""
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="SER",
+        name="N",
+        mac="M",
+        model="X",
+        hardware="H",
+        firmware="F",
+        ports=[SimpleNamespace(id="input1", type="input", state=True)],
+    )
+    hass = MagicMock()
+    hass.data = {DOMAIN: {"entry-1": {"_device": device, "binary_sensor": {"coordinator": SimpleNamespace(data={})}}}}
+    config = SimpleNamespace(entry_id="entry-1", data={"protocol": "https", "verify_ssl": False})
+    async_add_entities = MagicMock()
+
+    await setup_binary_sensor(hass, config, async_add_entities)
+
+    added_entities = async_add_entities.call_args.args[0]
+    assert any(isinstance(entity, Helios2nCertificateMismatchBinarySensorEntity) for entity in added_entities)
+    cert_entity = next(entity for entity in added_entities if isinstance(entity, Helios2nCertificateMismatchBinarySensorEntity))
+    assert cert_entity.name == "Certificate Fingerprint"
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_setup_skips_certificate_entity_for_non_https_or_verified_ssl():
+    """Certificate fingerprint entity should be omitted when HTTPS is not used or SSL verify is enabled."""
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="SER",
+        name="N",
+        mac="M",
+        model="X",
+        hardware="H",
+        firmware="F",
+        ports=[SimpleNamespace(id="input1", type="input", state=True)],
+    )
+    async_add_entities = MagicMock()
+
+    for protocol, verify_ssl in (("http", False), ("https", True)):
+        hass = MagicMock()
+        hass.data = {DOMAIN: {"entry-1": {"_device": device, "binary_sensor": {"coordinator": SimpleNamespace(data={})}}}}
+        config = SimpleNamespace(entry_id="entry-1", data={"protocol": protocol, "verify_ssl": verify_ssl})
+
+        await setup_binary_sensor(hass, config, async_add_entities)
+        added_entities = async_add_entities.call_args.args[0]
+        assert not any(
+            isinstance(entity, Helios2nCertificateMismatchBinarySensorEntity)
+            for entity in added_entities
+        )
