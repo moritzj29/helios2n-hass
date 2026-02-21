@@ -255,7 +255,14 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
             )
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             assert device is not None
-            return self.async_create_entry(title=device.data.name, data={})
+            return self.async_create_entry(
+                title=device.data.name,
+                data={
+                    **self.config_entry.options,
+                    CONF_USERNAME: user_input[CONF_USERNAME],
+                    CONF_PASSWORD: user_input[CONF_PASSWORD],
+                },
+            )
 
         return self.async_show_form(
             step_id="init",
