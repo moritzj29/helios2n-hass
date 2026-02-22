@@ -10,6 +10,7 @@ from py2n import Py2NDevice
 from py2n.exceptions import DeviceApiError
 
 _LOGGER = logging.getLogger(__name__)
+UPDATE_INTERVAL_SECONDS = 10
 COORDINATOR_TIMEOUT_SECONDS = 10
 API_ENDPOINT_IO_STATUS = "/api/io/status"
 API_ENDPOINT_SWITCH_STATUS = "/api/switch/status"
@@ -30,7 +31,7 @@ class Helios2nPortDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Helios2n Port Update",
-            update_interval=timedelta(seconds=30)
+            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS)
         )
         self.device = device
 
@@ -59,7 +60,7 @@ class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Helios2n Switch Update",
-            update_interval=timedelta(seconds=30)
+            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS)
         )
         self.device = device
 
@@ -88,7 +89,7 @@ class Helios2nSensorDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Helios2n Sensor Update",
-            update_interval=timedelta(seconds=30)
+            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS)
         )
         self.device = device
 

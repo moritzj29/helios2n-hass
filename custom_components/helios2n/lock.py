@@ -32,7 +32,6 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
 
 class Helios2nLockEntity(CoordinatorEntity, LockEntity):
     _attr_has_entity_name = True
-    _attr_should_poll = True
 
     def __init__(self, coordinator: Helios2nSwitchDataUpdateCoordinator, device: Py2NDevice, switch_id: int) -> None:
         super().__init__(coordinator)
