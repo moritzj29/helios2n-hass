@@ -20,7 +20,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 	async def async_step_user(self, user_input: dict[str, Any] | None = None) -> Coroutine[Any, Any, config_entries.FlowResult]:
 		errors = {}
 		if user_input is not None:
-			connect_options = Py2NConnectionData(user_input[CONF_HOST], user_input[CONF_USERNAME], user_input[CONF_PASSWORD], user_input[CONF_PROTOCOL])
+			connect_options = Py2NConnectionData(host=user_input[CONF_HOST], username=user_input[CONF_USERNAME], password=user_input[CONF_PASSWORD], protocol=user_input[CONF_PROTOCOL])
 			_LOGGER.error(connect_options)
 			try:
 				async with aiohttp.ClientSession() as session:
