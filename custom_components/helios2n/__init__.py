@@ -239,10 +239,11 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
     entry_data["_device"] = device
     for platform in platforms:
         entry_data.setdefault(platform, {})
+    port_coordinator = Helios2nPortDataUpdateCoordinator(hass, device)
     entry_data[Platform.LOCK]["coordinator"] = Helios2nSwitchDataUpdateCoordinator(hass, device)
-    entry_data[Platform.SWITCH]["coordinator"] = Helios2nPortDataUpdateCoordinator(hass, device)
+    entry_data[Platform.SWITCH]["coordinator"] = port_coordinator
     entry_data[Platform.SENSOR]["coordinator"] = Helios2nSensorDataUpdateCoordinator(hass, device)
-    entry_data[Platform.BINARY_SENSOR]["coordinator"] = Helios2nPortDataUpdateCoordinator(hass, device)
+    entry_data[Platform.BINARY_SENSOR]["coordinator"] = port_coordinator
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setups(
             config, platforms
