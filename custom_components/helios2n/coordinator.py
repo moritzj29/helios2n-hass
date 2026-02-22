@@ -32,7 +32,7 @@ class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
-            name="Helios2n Port Update",
+            name="Helios2n Switch Update",
             update_interval=timedelta(seconds=10)
         )
         self.device = device
@@ -41,5 +41,22 @@ class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with async_timeout.timeout(10):
                 await self.device.update_switch_status()
+        except DeviceApiError as err:
+            raise UpdateFailed(f"Device API error: {err.error}") from err
+
+class Helios2nSensorDataUpdateCoordinator(DataUpdateCoordinator):
+    def __init__(self, hass: HomeAssistant, device: Py2NDevice):
+        super().__init__(
+            hass,
+            _LOGGER,
+            name="Helios2n Sensor Update",
+            update_interval=timedelta(seconds=10)
+        )
+        self.device = device
+
+    async def _async_update_data(self):
+        try:
+            async with async_timeout.timeout(10):
+                await self.device.update_system_status()
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err

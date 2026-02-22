@@ -14,7 +14,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback):
-    device: Py2NDevice = hass.data[DOMAIN][config.entry_id]
+    device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     entities = []
     entities.append(Helios2nRestartButtonEntity(device))
     for switch in device.data.switches:

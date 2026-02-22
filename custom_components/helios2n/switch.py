@@ -18,9 +18,8 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.SWITCH
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback):
-    device: Py2NDevice
-    device: Py2NDevice = hass.data[DOMAIN][config.entry_id]
-    coordinator: Helios2nPortDataUpdateCoordinator = hass.data[DOMAIN][PLATFORM]["coordinator"]
+    device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
+    coordinator: Helios2nPortDataUpdateCoordinator = hass.data[DOMAIN][config.entry_id][PLATFORM]["coordinator"]
     entities = []
     for port in device.data.ports:
         if port.type == "output":

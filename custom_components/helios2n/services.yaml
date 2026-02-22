@@ -1,0 +1,46 @@
+# Example services.yaml entry
+
+# Service ID
+api_call:
+  # Different fields that your service action accepts
+  fields:
+    endpoint:
+      # Whether or not field is required (default = false)
+      required: true
+      example: "switch/status"
+      selector:
+        text:
+          type: "url"
+    method:
+      # Whether or not field is required (default = false)
+      required: true
+      # Example value that can be passed for this field
+      example: "GET"
+      # The default field value
+      default: "GET"
+      selector:
+        select:
+          options:
+            - "GET"
+            - "POST"
+            - "PUT"
+    data:
+      selector:
+        text:
+          multiline: true
+    json:
+      selector:
+        text:
+          multiline: true
+  advanced_fields:
+    collapsed: true
+    fields:
+      entry:
+      timeout:
+        example: "10"
+        default: "10"
+        selector:
+          number:
+            min: 0
+            max: 3600
+            unit_of_measurement: "s"

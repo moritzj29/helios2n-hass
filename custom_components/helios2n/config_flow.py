@@ -1,12 +1,18 @@
+import logging
 from typing import Any, Coroutine
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_HOST, CONF_PROTOCOL
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.selector import selector
 import aiohttp
 import voluptuous as vol
 from py2n import Py2NDevice, Py2NConnectionData
 from py2n.exceptions import DeviceApiError
 from .const import DOMAIN
+
+from homeassistant import config_entries
+
+_LOGGER = logging.getLogger(__name__)
 
 class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 	"""Helios/2n config flow"""
@@ -14,7 +20,8 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 	async def async_step_user(self, user_input: dict[str, Any] | None = None) -> Coroutine[Any, Any, config_entries.FlowResult]:
 		errors = {}
 		if user_input is not None:
-			connect_options = Py2NConnectionData(user_input[CONF_HOST], user_input[CONF_USERNAME], user_input[CONF_PASSWORD])
+			connect_options = Py2NConnectionData(user_input[CONF_HOST], user_input[CONF_USERNAME], user_input[CONF_PASSWORD], user_input[CONF_PROTOCOL])
+			_LOGGER.error(connect_options)
 			try:
 				async with aiohttp.ClientSession() as session:
 					device = await Py2NDevice.create(session, connect_options)
@@ -36,7 +43,15 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=vol.Schema({
 		    vol.Required(CONF_HOST): cv.string,
 		    vol.Required(CONF_USERNAME): cv.string,
-		    vol.Required(CONF_PASSWORD): cv.string
+		    vol.Required(CONF_PASSWORD): cv.string,
+            vol.Required(CONF_PROTOCOL, default="http"):
+                selector({
+                    "select": {
+                        "options": ["http", "https"],
+                        "mode": "dropdown",
+                    },
+                }),
+
 			}),
 			errors=errors
         )

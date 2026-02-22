@@ -1,2 +1,10 @@
 """Constants for integration"""
 DOMAIN = "helios2n"
+ATTR_METHOD = "method"
+DEFAULT_METHOD = "GET"
+ATTR_ENDPOINT = "endpoint"
+ATTR_TIMEOUT = "timeout"
+DEFAULT_TIMEOUT = 10
+ATTR_DATA = "data"
+ATTR_JSON = "json"
+ATTR_ENTRY = "entry"
