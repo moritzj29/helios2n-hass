@@ -73,6 +73,48 @@ async def test_sensor_coordinator_returns_uptime_value():
 
 
 @pytest.mark.asyncio
+async def test_mapping_coordinator_conflict_is_confirmed_by_second_poll():
+    """A conflicting poll result should be confirmed before replacing state."""
+    coordinator = object.__new__(Helios2nSwitchDataUpdateCoordinator)
+    coordinator.data = {1: True}
+    coordinator._async_fetch_polled_state = AsyncMock(
+        side_effect=[{1: False}, {1: False}]
+    )
+
+    result = await coordinator._async_update_data()
+
+    assert result == {1: False}
+    assert coordinator._async_fetch_polled_state.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_mapping_coordinator_keeps_current_state_when_confirmation_disagrees():
+    """If follow-up poll disagrees, keep the current event-driven state."""
+    coordinator = object.__new__(Helios2nSwitchDataUpdateCoordinator)
+    coordinator.data = {1: True}
+    coordinator._async_fetch_polled_state = AsyncMock(
+        side_effect=[{1: False}, {1: True}]
+    )
+
+    result = await coordinator._async_update_data()
+
+    assert result == {1: True}
+    assert coordinator._async_fetch_polled_state.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_mapping_coordinator_applies_event_updates_to_current_data():
+    """Event updates should merge into coordinator data."""
+    coordinator = object.__new__(Helios2nSwitchDataUpdateCoordinator)
+    coordinator.data = {1: False, 2: False}
+    coordinator.async_set_updated_data = MagicMock()
+
+    await coordinator.async_apply_event_update({1: True})
+
+    coordinator.async_set_updated_data.assert_called_once_with({1: True, 2: False})
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("coordinator_cls", "setup_device", "endpoint"),
     [
