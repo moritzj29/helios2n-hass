@@ -12,8 +12,8 @@ from homeassistant.helpers.typing import ConfigType
 
 from py2n import Py2NDevice
 
-from . import _extract_switch_state_change, _log_event_signal
 from .const import DOMAIN
+from .log import _extract_switch_state_change, _log_event_signal
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.EVENT
