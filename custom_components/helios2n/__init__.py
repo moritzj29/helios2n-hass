@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, CONF_VERIFY_SSL, Platform
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
@@ -19,10 +20,54 @@ from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIME
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
 from .utils import sanitize_connection_data, async_get_ssl_certificate_fingerprint, create_connection_data, normalize_auth_method
 
-platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
+platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.EVENT]
 LOG_POLL_TASK = "_log_poll_task"
 ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 ENDPOINT_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _log_event_signal(entry_id: str) -> str:
+    """Return dispatcher signal name for a config entry."""
+    return f"{DOMAIN}_{entry_id}_log_event"
+
+
+def _extract_switch_state_change(event: dict) -> tuple[int, bool] | None:
+    """Extract switch id and state from a SwitchStateChanged log event."""
+    if event.get("event") != "SwitchStateChanged":
+        return None
+    params = event.get("params")
+    payload = params if isinstance(params, dict) else event
+    switch_id = payload.get("switch")
+    state = payload.get("state")
+    if isinstance(switch_id, bool) or not isinstance(switch_id, int):
+        return None
+    if not isinstance(state, bool):
+        return None
+    return switch_id, state
+
+
+def _update_switch_state_from_log_event(hass: HomeAssistant, entry_id: str, event: dict) -> None:
+    """Push SwitchStateChanged events into the switch coordinator cache."""
+    extracted = _extract_switch_state_change(event)
+    if extracted is None:
+        return
+
+    entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
+    if not isinstance(entry_data, dict):
+        return
+    lock_data = entry_data.get(Platform.LOCK)
+    if not isinstance(lock_data, dict):
+        return
+    coordinator = lock_data.get("coordinator")
+    if coordinator is None or not hasattr(coordinator, "async_set_updated_data"):
+        return
+
+    switch_id, state = extracted
+    current_raw_data = getattr(coordinator, "data", None)
+    current_data = current_raw_data if isinstance(current_raw_data, dict) else {}
+    updated_data = dict(current_data)
+    updated_data[switch_id] = state
+    coordinator.async_set_updated_data(updated_data)
 
 
 def _validate_api_endpoint(endpoint: object | None) -> str:
@@ -252,19 +297,24 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
     try:
         logid = await device.log_subscribe()
-        entry_data[LOG_POLL_TASK] = hass.async_create_task(poll_log(device, logid, hass))
+        entry_data[LOG_POLL_TASK] = hass.async_create_task(
+            poll_log(device, logid, hass, config.entry_id)
+        )
     except Exception as err:
         _LOGGER.warning("Failed to subscribe to device logs: %s", err)
 
     return True
 
 
-async def poll_log(device, logid, hass, retry_count=0, max_retries=5):
+async def poll_log(device, logid, hass, entry_id: str | None = None, retry_count=0, max_retries=5):
     """Poll device logs with retry mechanism."""
     while True:
         try:
             for event in await device.log_pull(logid, timeout=30):
                 hass.bus.async_fire(DOMAIN + "_event", event)
+                if entry_id is not None:
+                    async_dispatcher_send(hass, _log_event_signal(entry_id), event)
+                    _update_switch_state_from_log_event(hass, entry_id, event)
             retry_count = 0  # Reset on successful poll
         except asyncio.CancelledError:
             raise
