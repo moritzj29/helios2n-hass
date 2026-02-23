@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import timedelta
+from typing import Generic, Mapping, TypeVar
 import async_timeout
 
 from homeassistant.core import HomeAssistant
@@ -15,6 +16,7 @@ COORDINATOR_TIMEOUT_SECONDS = 10
 API_ENDPOINT_IO_STATUS = "/api/io/status"
 API_ENDPOINT_SWITCH_STATUS = "/api/switch/status"
 API_ENDPOINT_SYSTEM_STATUS = "/api/system/status"
+TStateKey = TypeVar("TStateKey")
 
 
 def _get_device_host(device: Py2NDevice) -> str:
@@ -25,17 +27,86 @@ def _get_device_host(device: Py2NDevice) -> str:
         return host
     return "unknown"
 
-class Helios2nPortDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass: HomeAssistant, device: Py2NDevice):
+class Helios2nMappingDataUpdateCoordinator(
+    DataUpdateCoordinator[dict[TStateKey, object]], Generic[TStateKey]
+):
+    """Coordinator with serialized event updates and conflict-aware polling.
+
+    Update strategy:
+    - First startup refresh initializes state from API polling.
+    - Runtime event updates are applied immediately and serialized via a lock.
+    - Periodic polling acts as reconciliation and must not blindly overwrite
+      potentially fresher event-driven state.
+    """
+
+    def __init__(self, hass: HomeAssistant, *, name: str):
         super().__init__(
             hass,
             _LOGGER,
-            name="Helios2n Port Update",
-            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS)
+            name=name,
+            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS),
         )
+        self._state_lock = asyncio.Lock()
+
+    def _ensure_state_lock(self) -> None:
+        """Backfill lock for tests constructing with object.__new__."""
+        if not hasattr(self, "_state_lock"):
+            self._state_lock = asyncio.Lock()
+
+    async def _async_fetch_polled_state(self) -> dict[TStateKey, object]:
+        """Fetch state from device APIs."""
+        raise NotImplementedError
+
+    async def _async_update_data(self) -> dict[TStateKey, object]:
+        """Fetch periodic state and reconcile with event-driven cache.
+
+        If poll result differs from current state, perform one immediate
+        confirmation poll before accepting the new value. This prevents a
+        transient or stale poll result from overriding a recent event update.
+        """
+        self._ensure_state_lock()
+        polled_state = await self._async_fetch_polled_state()
+        current_raw_data = getattr(self, "data", None)
+        current_data = current_raw_data if isinstance(current_raw_data, dict) else None
+        if current_data is None or polled_state == current_data:
+            return polled_state
+
+        confirmed_state = await self._async_fetch_polled_state()
+        async with self._state_lock:
+            latest_raw_data = getattr(self, "data", None)
+            latest_data = latest_raw_data if isinstance(latest_raw_data, dict) else None
+            if latest_data is None:
+                return confirmed_state
+            if confirmed_state == latest_data:
+                return latest_data
+            if confirmed_state == polled_state:
+                return confirmed_state
+            # Keep event-driven state if follow-up poll disagrees.
+            return latest_data
+
+    async def async_apply_event_update(self, updates: Mapping[TStateKey, object]) -> None:
+        """Apply event-driven partial updates while serializing state mutations.
+
+        This is called by runtime log/event handlers, not only tests.
+        """
+        if not updates:
+            return
+        self._ensure_state_lock()
+        async with self._state_lock:
+            current_raw_data = getattr(self, "data", None)
+            current_data = dict(current_raw_data) if isinstance(current_raw_data, dict) else {}
+            updated_data = dict(current_data)
+            updated_data.update(updates)
+            if updated_data != current_data:
+                self.async_set_updated_data(updated_data)
+
+
+class Helios2nPortDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str]):
+    def __init__(self, hass: HomeAssistant, device: Py2NDevice):
+        super().__init__(hass, name="Helios2n Port Update")
         self.device = device
 
-    async def _async_update_data(self):
+    async def _async_fetch_polled_state(self) -> dict[str, object]:
         try:
             async with async_timeout.timeout(COORDINATOR_TIMEOUT_SECONDS):
                 await self.device.update_port_status()
@@ -54,17 +125,12 @@ class Helios2nPortDataUpdateCoordinator(DataUpdateCoordinator):
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
 
-class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
+class Helios2nSwitchDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[int]):
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
-        super().__init__(
-            hass,
-            _LOGGER,
-            name="Helios2n Switch Update",
-            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS)
-        )
+        super().__init__(hass, name="Helios2n Switch Update")
         self.device = device
 
-    async def _async_update_data(self):
+    async def _async_fetch_polled_state(self) -> dict[int, object]:
         try:
             async with async_timeout.timeout(COORDINATOR_TIMEOUT_SECONDS):
                 await self.device.update_switch_status()
@@ -83,17 +149,12 @@ class Helios2nSwitchDataUpdateCoordinator(DataUpdateCoordinator):
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
 
-class Helios2nSensorDataUpdateCoordinator(DataUpdateCoordinator):
+class Helios2nSensorDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str]):
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
-        super().__init__(
-            hass,
-            _LOGGER,
-            name="Helios2n Sensor Update",
-            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS)
-        )
+        super().__init__(hass, name="Helios2n Sensor Update")
         self.device = device
 
-    async def _async_update_data(self):
+    async def _async_fetch_polled_state(self) -> dict[str, object]:
         try:
             async with async_timeout.timeout(COORDINATOR_TIMEOUT_SECONDS):
                 await self.device.update_system_status()
