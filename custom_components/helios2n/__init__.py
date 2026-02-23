@@ -11,16 +11,16 @@ from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PR
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from py2n import Py2NDevice
-from py2n.exceptions import DeviceConnectionError, DeviceUnsupportedError, DeviceApiError, ApiError, Py2NError
+from py2n.exceptions import Py2NError
 
 _LOGGER = logging.getLogger(__name__)
 
 from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
+from .log import LOG_POLL_TASK, poll_log
 from .utils import sanitize_connection_data, create_connection_data, normalize_auth_method
 
-platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
-LOG_POLL_TASK = "_log_poll_task"
+platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.EVENT]
 ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 ENDPOINT_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -183,10 +183,19 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
     for platform in platforms:
         entry_data.setdefault(platform, {})
     port_coordinator = Helios2nPortDataUpdateCoordinator(hass, device)
-    entry_data[Platform.LOCK]["coordinator"] = Helios2nSwitchDataUpdateCoordinator(hass, device)
+    switch_coordinator = Helios2nSwitchDataUpdateCoordinator(hass, device)
+    sensor_coordinator = Helios2nSensorDataUpdateCoordinator(hass, device)
+    entry_data[Platform.LOCK]["coordinator"] = switch_coordinator
     entry_data[Platform.SWITCH]["coordinator"] = port_coordinator
-    entry_data[Platform.SENSOR]["coordinator"] = Helios2nSensorDataUpdateCoordinator(hass, device)
+    entry_data[Platform.SENSOR]["coordinator"] = sensor_coordinator
     entry_data[Platform.BINARY_SENSOR]["coordinator"] = port_coordinator
+
+    await asyncio.gather(
+        port_coordinator.async_config_entry_first_refresh(),
+        switch_coordinator.async_config_entry_first_refresh(),
+        sensor_coordinator.async_config_entry_first_refresh(),
+    )
+
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setups(
             config, platforms
@@ -195,45 +204,11 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
     try:
         logid = await device.log_subscribe()
-        entry_data[LOG_POLL_TASK] = hass.async_create_task(poll_log(device, logid, hass))
+        entry_data[LOG_POLL_TASK] = hass.async_create_task(
+            poll_log(device, logid, hass, config.entry_id)
+        )
     except Exception as err:
         _LOGGER.warning("Failed to subscribe to device logs: %s", err)
 
     return True
 
-
-async def poll_log(device, logid, hass, retry_count=0, max_retries=5):
-    """Poll device logs with retry mechanism."""
-    while True:
-        try:
-            for event in await device.log_pull(logid, timeout=30):
-                hass.bus.async_fire(DOMAIN + "_event", event)
-            retry_count = 0  # Reset on successful poll
-        except asyncio.CancelledError:
-            raise
-        except (DeviceConnectionError, DeviceUnsupportedError) as err:
-            retry_count += 1
-            if retry_count > max_retries:
-                _LOGGER.error("Max retries exceeded for log polling: %s", err)
-                return
-            await asyncio.sleep(5)
-        except DeviceApiError as err:
-            if err.error == ApiError.INVALID_PARAMETER_VALUE:
-                try:
-                    logid = await device.log_subscribe()
-                    retry_count = 0
-                except Exception as resubscribe_err:
-                    _LOGGER.error("Failed to resubscribe to logs: %s", resubscribe_err)
-                    return
-            else:
-                retry_count += 1
-                if retry_count > max_retries:
-                    _LOGGER.error("Max retries exceeded for log polling: %s", err)
-                    return
-                await asyncio.sleep(5)
-        except Exception as err:
-            _LOGGER.error("Unexpected error in log polling: %s", err)
-            retry_count += 1
-            if retry_count > max_retries:
-                return
-            await asyncio.sleep(5)
