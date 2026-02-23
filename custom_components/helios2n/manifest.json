@@ -8,7 +8,7 @@
     "issue_tracker": "https://github.com/moritzj29/helios2n-hass/issues",
     "integration_type": "device",
     "requirements": [
-        "git+https://github.com/moritzj29/py2n.git@main"
+        "py2n @ git+https://github.com/moritzj29/py2n.git@main"
     ],
     "version": "0.4.0",
     "config_flow": true,
