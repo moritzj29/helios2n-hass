@@ -1,6 +1,6 @@
 """Tests for integration constants."""
 import pytest
-from ..const import (
+from custom_components.helios2n.const import (
 	DOMAIN,
 	ATTR_METHOD,
 	ATTR_ENDPOINT,

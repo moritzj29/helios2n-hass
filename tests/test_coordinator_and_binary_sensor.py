@@ -7,15 +7,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from ..binary_sensor import (
+from custom_components.helios2n.binary_sensor import (
     Helios2nCertificateMismatchBinarySensorEntity,
     Helios2nOutputStatusBinarySensorEntity,
     Helios2nPortBinarySensorEntity,
     Helios2nSwitchStatusBinarySensorEntity,
     async_setup_entry as setup_binary_sensor,
 )
-from ..const import DOMAIN
-from ..coordinator import (
+from custom_components.helios2n.const import DOMAIN
+from custom_components.helios2n.coordinator import (
     API_ENDPOINT_IO_STATUS,
     API_ENDPOINT_SWITCH_STATUS,
     API_ENDPOINT_SYSTEM_STATUS,
