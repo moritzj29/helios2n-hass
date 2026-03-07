@@ -7,6 +7,7 @@ import pytest
 from homeassistant.const import Platform
 from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 
+import custom_components.helios2n as integration_init_module
 from custom_components.helios2n import LOG_POLL_TASK, async_unload_entry, poll_log
 from custom_components.helios2n.const import ATTR_LOG_SUBSCRIPTION, DOMAIN, SERVICE_RECAPTURE_CERTIFICATE
 
@@ -162,3 +163,46 @@ async def test_async_unload_entry_cancels_log_poll_task():
 	assert hass.services.async_remove.call_count == 2
 	assert hass.services.async_remove.call_args_list[0].args == (DOMAIN, "api_call")
 	assert hass.services.async_remove.call_args_list[1].args == (DOMAIN, SERVICE_RECAPTURE_CERTIFICATE)
+
+
+@pytest.mark.asyncio
+async def test_log_polling_watchdog_restarts_task_after_unexpected_exit(monkeypatch):
+	"""Unexpected task exit should trigger watchdog resubscribe+restart."""
+	calls: list[str] = []
+	hold_event = asyncio.Event()
+
+	async def fake_poll_log(device, logid, hass, entry_id=None):
+		calls.append(logid)
+		if len(calls) == 1:
+			return
+		await hold_event.wait()
+
+	device = MagicMock()
+	device.log_subscribe = AsyncMock(return_value="new-logid")
+	hass = MagicMock()
+	hass.data = {DOMAIN: {"entry-1": {}}}
+	hass.async_create_task = asyncio.create_task
+
+	monkeypatch.setattr(integration_init_module, "poll_log", fake_poll_log)
+	monkeypatch.setattr(integration_init_module, "LOG_WATCHDOG_DELAY_SECONDS", 0)
+
+	entry_data = hass.data[DOMAIN]["entry-1"]
+	done_task = asyncio.create_task(fake_poll_log(device, "old-logid", hass, "entry-1"))
+	entry_data[LOG_POLL_TASK] = done_task
+	await done_task
+	await integration_init_module._async_handle_log_poll_task_done(
+		hass, "entry-1", device, done_task
+	)
+	watchdog_task = entry_data.get(integration_init_module.LOG_WATCHDOG_TASK)
+	assert watchdog_task is not None
+	await watchdog_task
+
+	assert calls[:2] == ["old-logid", "new-logid"]
+	assert device.log_subscribe.await_count == 1
+
+	entry_data[integration_init_module.LOG_UNLOADING] = True
+	running_task = entry_data.get(LOG_POLL_TASK)
+	if running_task:
+		running_task.cancel()
+		with pytest.raises(asyncio.CancelledError):
+			await running_task
