@@ -8,7 +8,7 @@ from homeassistant.helpers.selector import selector
 import aiohttp
 import voluptuous as vol
 from py2n import Py2NDevice
-from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
+from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError, DeviceUnsupportedError
 from .const import (
     CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
     CONF_DISABLE_CONTROL_ENTITIES,
@@ -201,6 +201,18 @@ async def _async_validate_connection(
             sanitized_payload,
         )
         return None, _map_api_error_to_flow_error(err.error), protocol, sanitized_payload
+    except DeviceUnsupportedError as err:
+        endpoint = "/api/system/info"
+        request_url = f"{protocol}://{host}{endpoint}"
+        _LOGGER.error(
+            "Connection test failed: unsupported or malformed device response from original request. endpoint=%s url=%s error=%s payload=%s",
+            endpoint,
+            request_url,
+            err,
+            sanitized_payload,
+            exc_info=err,
+        )
+        return None, "cannot_connect", protocol, sanitized_payload
     except (aiohttp.ClientError, OSError) as err:
         _LOGGER.error(
             "Connection test failed: network/client error (%s: %r); payload=%s",
