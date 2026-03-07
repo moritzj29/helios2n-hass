@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from datetime import UTC, datetime
 from urllib.parse import unquote, urlsplit
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse
@@ -15,7 +16,7 @@ from py2n.exceptions import Py2NError
 
 _LOGGER = logging.getLogger(__name__)
 
-from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD
+from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD, ATTR_LOG_SUBSCRIPTION
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
 from .log import LOG_POLL_TASK, poll_log
 from .utils import sanitize_connection_data, create_connection_data, normalize_auth_method
@@ -23,6 +24,112 @@ from .utils import sanitize_connection_data, create_connection_data, normalize_a
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.EVENT]
 ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
 ENDPOINT_SEGMENT_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+LOG_WATCHDOG_TASK = "_log_watchdog_task"
+LOG_UNLOADING = "_log_unloading"
+# Small cooldown to avoid tight restart loops if device/API is briefly unavailable.
+LOG_WATCHDOG_DELAY_SECONDS = 5
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _mark_log_subscription_unhealthy(entry_data: dict, reason: str) -> None:
+    """Expose watchdog-detected task failure in diagnostics state."""
+    state = entry_data.get(ATTR_LOG_SUBSCRIPTION)
+    if not isinstance(state, dict):
+        state = {}
+        entry_data[ATTR_LOG_SUBSCRIPTION] = state
+    state["healthy"] = False
+    state["last_error"] = reason
+    state["last_error_at"] = _utc_now_iso()
+
+
+def _mark_log_watchdog_resubscribe(entry_data: dict) -> None:
+    state = entry_data.get(ATTR_LOG_SUBSCRIPTION)
+    if not isinstance(state, dict):
+        state = {}
+        entry_data[ATTR_LOG_SUBSCRIPTION] = state
+    state["resubscribe_count"] = int(state.get("resubscribe_count", 0)) + 1
+    state["last_resubscribe_at"] = _utc_now_iso()
+
+
+async def _async_start_log_poll_task(
+    hass: HomeAssistant, entry_id: str, device: Py2NDevice, logid: str
+) -> None:
+    """Start poll task and attach watchdog callback for unexpected exits."""
+    entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
+    if not isinstance(entry_data, dict) or entry_data.get(LOG_UNLOADING):
+        return
+    task = hass.async_create_task(poll_log(device, logid, hass, entry_id))
+    entry_data[LOG_POLL_TASK] = task
+
+    def _on_done(done_task: asyncio.Task) -> None:
+        hass.async_create_task(
+            _async_handle_log_poll_task_done(hass, entry_id, device, done_task)
+        )
+
+    task.add_done_callback(_on_done)
+
+
+async def _async_handle_log_poll_task_done(
+    hass: HomeAssistant, entry_id: str, device: Py2NDevice, done_task: asyncio.Task
+) -> None:
+    entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
+    if not isinstance(entry_data, dict):
+        return
+    if entry_data.get(LOG_UNLOADING):
+        return
+    if entry_data.get(LOG_POLL_TASK) is not done_task:
+        return
+
+    reason = "log polling task exited"
+    if done_task.cancelled():
+        reason = "log polling task cancelled unexpectedly"
+        _LOGGER.warning("%s for entry %s; scheduling restart", reason, entry_id)
+    else:
+        exc = done_task.exception()
+        if exc is not None:
+            reason = f"log polling task crashed: {exc}"
+            _LOGGER.error(
+                "Log polling task crashed for entry %s; scheduling restart",
+                entry_id,
+                exc_info=exc,
+            )
+        else:
+            _LOGGER.warning("Log polling task ended for entry %s; scheduling restart", entry_id)
+
+    _mark_log_subscription_unhealthy(entry_data, reason)
+    if entry_data.get(LOG_WATCHDOG_TASK) is not None:
+        return
+    entry_data[LOG_WATCHDOG_TASK] = hass.async_create_task(
+        _async_restart_log_polling(hass, entry_id, device)
+    )
+
+
+async def _async_restart_log_polling(
+    hass: HomeAssistant, entry_id: str, device: Py2NDevice
+) -> None:
+    """Delayed restart prevents hot-looping when device is briefly unavailable."""
+    await asyncio.sleep(LOG_WATCHDOG_DELAY_SECONDS)
+    entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
+    if not isinstance(entry_data, dict):
+        return
+    if entry_data.get(LOG_UNLOADING):
+        return
+    try:
+        logid = await device.log_subscribe()
+        _mark_log_watchdog_resubscribe(entry_data)
+        await _async_start_log_poll_task(hass, entry_id, device, logid)
+    except asyncio.CancelledError:
+        raise
+    except Exception as err:
+        _mark_log_subscription_unhealthy(entry_data, f"watchdog resubscribe failed: {err}")
+        _LOGGER.warning("Log polling watchdog resubscribe failed for entry %s: %s", entry_id, err)
+    finally:
+        latest_entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
+        if isinstance(latest_entry_data, dict):
+            latest_entry_data[LOG_WATCHDOG_TASK] = None
 
 
 def _validate_api_endpoint(endpoint: object | None) -> str:
@@ -138,11 +245,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry and cleanup resources."""
     entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if isinstance(entry_data, dict):
+        entry_data[LOG_UNLOADING] = True
     log_task = entry_data.pop(LOG_POLL_TASK, None) if entry_data else None
     if log_task:
         log_task.cancel()
         try:
             await log_task
+        except asyncio.CancelledError:
+            pass
+    watchdog_task = entry_data.pop(LOG_WATCHDOG_TASK, None) if entry_data else None
+    if watchdog_task:
+        watchdog_task.cancel()
+        try:
+            await watchdog_task
         except asyncio.CancelledError:
             pass
 
@@ -205,11 +321,8 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
     try:
         logid = await device.log_subscribe()
-        entry_data[LOG_POLL_TASK] = hass.async_create_task(
-            poll_log(device, logid, hass, config.entry_id)
-        )
+        await _async_start_log_poll_task(hass, config.entry_id, device, logid)
     except Exception as err:
         _LOGGER.warning("Failed to subscribe to device logs: %s", err)
 
     return True
-
