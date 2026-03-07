@@ -32,7 +32,7 @@ jobs:
       
       - name: Run tests with pytest
         run: |
-          pytest custom_components/helios2n/tests/ -v --cov=custom_components/helios2n --cov-report=term-missing --cov-report=xml
+          pytest tests/ -v --cov=custom_components/helios2n --cov-report=term-missing --cov-report=xml
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -63,4 +63,4 @@ jobs:
       
       - name: Check imports
         run: |
-          python -m pytest custom_components/helios2n/tests/ --collect-only
+          python -m pytest tests/ --collect-only
