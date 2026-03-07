@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from py2n import Py2NDevice
-from py2n.exceptions import DeviceApiError
+from py2n.exceptions import DeviceApiError, DeviceUnsupportedError
 
 _LOGGER = logging.getLogger(__name__)
 UPDATE_INTERVAL_SECONDS = 10
@@ -25,7 +25,12 @@ def _get_device_host(device: Py2NDevice) -> str:
     host = getattr(data, "host", None)
     if isinstance(host, str) and host:
         return host
+    options = getattr(device, "options", None)
+    options_host = getattr(options, "host", None)
+    if isinstance(options_host, str) and options_host:
+        return options_host
     return "unknown"
+
 
 class Helios2nMappingDataUpdateCoordinator(
     DataUpdateCoordinator[dict[TStateKey, object]], Generic[TStateKey]
@@ -91,6 +96,7 @@ class Helios2nMappingDataUpdateCoordinator(
         """
         if not updates:
             return
+        _LOGGER.debug("Applying event updates: %s", updates)
         self._ensure_state_lock()
         async with self._state_lock:
             current_raw_data = getattr(self, "data", None)
@@ -98,12 +104,37 @@ class Helios2nMappingDataUpdateCoordinator(
             updated_data = dict(current_data)
             updated_data.update(updates)
             if updated_data != current_data:
+                _LOGGER.debug("Event-driven state change from %s to %s", current_data, updated_data)
                 self.async_set_updated_data(updated_data)
+
+    async def _raise_unsupported_response_update_failed(
+        self, err: DeviceUnsupportedError, endpoint: str
+    ) -> None:
+        """Log malformed-response diagnostics from the original failing request."""
+        options = getattr(self.device, "options", None)
+        protocol = getattr(options, "protocol", "http")
+        auth_method = getattr(options, "auth_method", "unknown")
+        ssl_verify = getattr(options, "ssl_verify", None)
+        url = f"{protocol}://{_get_device_host(self.device)}/{endpoint.lstrip('/')}"
+        # Include response payload if available, truncating to avoid huge logs
+        response_repr = repr(err.response)[:500] if getattr(err, "response", None) is not None else "None"
+        _LOGGER.error(
+            "Malformed response from original request. host=%s endpoint=%s url=%s auth_method=%s ssl_verify=%s error=%s response=%s",
+            _get_device_host(self.device),
+            endpoint,
+            url,
+            auth_method,
+            ssl_verify,
+            err,
+            response_repr,
+            exc_info=err,
+        )
+        raise UpdateFailed(f"Device unsupported or malformed response: {err}") from err
 
 
 class Helios2nPortDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str]):
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
-        super().__init__(hass, name="Helios2n Port Update")
+        super().__init__(hass, name=f"Helios2n Port Update [{_get_device_host(device)}]")
         self.device = device
 
     async def _async_fetch_polled_state(self) -> dict[str, object]:
@@ -124,10 +155,12 @@ class Helios2nPortDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str
             ) from err
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
+        except DeviceUnsupportedError as err:
+            await self._raise_unsupported_response_update_failed(err, API_ENDPOINT_IO_STATUS)
 
 class Helios2nSwitchDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[int]):
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
-        super().__init__(hass, name="Helios2n Switch Update")
+        super().__init__(hass, name=f"Helios2n Switch Update [{_get_device_host(device)}]")
         self.device = device
 
     async def _async_fetch_polled_state(self) -> dict[int, object]:
@@ -148,10 +181,12 @@ class Helios2nSwitchDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[i
             ) from err
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
+        except DeviceUnsupportedError as err:
+            await self._raise_unsupported_response_update_failed(err, API_ENDPOINT_SWITCH_STATUS)
 
 class Helios2nSensorDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str]):
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
-        super().__init__(hass, name="Helios2n Sensor Update")
+        super().__init__(hass, name=f"Helios2n Sensor Update [{_get_device_host(device)}]")
         self.device = device
 
     async def _async_fetch_polled_state(self) -> dict[str, object]:
@@ -172,3 +207,5 @@ class Helios2nSensorDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[s
             ) from err
         except DeviceApiError as err:
             raise UpdateFailed(f"Device API error: {err.error}") from err
+        except DeviceUnsupportedError as err:
+            await self._raise_unsupported_response_update_failed(err, API_ENDPOINT_SYSTEM_STATUS)

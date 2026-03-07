@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from py2n.exceptions import DeviceUnsupportedError
 
 from custom_components.helios2n.binary_sensor import (
     Helios2nOutputStatusBinarySensorEntity,
@@ -111,6 +112,43 @@ async def test_mapping_coordinator_applies_event_updates_to_current_data():
     await coordinator.async_apply_event_update({1: True})
 
     coordinator.async_set_updated_data.assert_called_once_with({1: True, 2: False})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("coordinator_cls", "setup_device"),
+    [
+        (
+            Helios2nPortDataUpdateCoordinator,
+            lambda: SimpleNamespace(
+                update_port_status=AsyncMock(side_effect=DeviceUnsupportedError("response malformed")),
+                data=SimpleNamespace(ports=[]),
+            ),
+        ),
+        (
+            Helios2nSwitchDataUpdateCoordinator,
+            lambda: SimpleNamespace(
+                update_switch_status=AsyncMock(side_effect=DeviceUnsupportedError("response malformed")),
+                get_switch=MagicMock(return_value=False),
+                data=SimpleNamespace(switches=[]),
+            ),
+        ),
+        (
+            Helios2nSensorDataUpdateCoordinator,
+            lambda: SimpleNamespace(
+                update_system_status=AsyncMock(side_effect=DeviceUnsupportedError("response malformed")),
+                data=SimpleNamespace(uptime=datetime.now(UTC)),
+            ),
+        ),
+    ],
+)
+async def test_coordinator_maps_unsupported_responses_to_update_failed(coordinator_cls, setup_device):
+    """Malformed/unsupported py2n responses should be wrapped in UpdateFailed."""
+    coordinator = object.__new__(coordinator_cls)
+    coordinator.device = setup_device()
+
+    with pytest.raises(UpdateFailed, match="response malformed"):
+        await coordinator._async_update_data()
 
 
 @pytest.mark.asyncio

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
-from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
+from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError, DeviceUnsupportedError
 
 from custom_components.helios2n import config_flow as flow_module
 from custom_components.helios2n.config_flow import Helios2nConfigFlow, Helios2nOptionsFlow
@@ -132,6 +132,20 @@ async def test_async_step_user_returns_unknown_for_unexpected_error(mock_hass):
 	assert result["errors"]["base"] == "unknown"
 
 
+@pytest.mark.asyncio
+async def test_async_step_user_returns_cannot_connect_for_unsupported_device_response(mock_hass):
+	"""Malformed/unsupported device responses should map to cannot_connect."""
+	flow = _new_flow(mock_hass)
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(side_effect=DeviceUnsupportedError("response malformed")),
+	):
+		result = await flow.async_step_user(VALID_USER_INPUT)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "cannot_connect"
 
 
 @pytest.mark.asyncio

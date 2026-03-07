@@ -111,10 +111,15 @@ async def _update_switch_state_from_log_event(
 
     Primary path uses coordinator.async_apply_event_update() so state writes are
     serialized with polling reconciliation logic in the coordinator.
+
+    Note: The switch coordinator is stored under Platform.LOCK because switch state
+    updates are used by lock entities that control bistable switches.
     """
     extracted = _extract_switch_state_change(event)
     if extracted is None:
         return
+
+    _LOGGER.debug("Extracted switch state change: %s", extracted)
 
     entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
     if not isinstance(entry_data, dict):
@@ -149,10 +154,16 @@ async def _update_switch_state_from_log_event(
 async def _update_port_state_from_log_event(
     hass: HomeAssistant, entry_id: str, event: dict
 ) -> None:
-    """Push InputChanged/OutputChanged events into the port coordinator cache."""
+    """Push InputChanged/OutputChanged events into the port coordinator cache.
+
+    Note: The port coordinator is stored under Platform.SWITCH because port/IO state
+    updates are used by switch entities that control output ports/relays.
+    """
     extracted = _extract_port_state_change(event)
     if extracted is None:
         return
+
+    _LOGGER.debug("Extracted port state change: %s", extracted)
 
     entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
     if not isinstance(entry_data, dict):
@@ -193,6 +204,7 @@ async def poll_log(
     while True:
         try:
             for event in await device.log_pull(logid, timeout=30):
+                _LOGGER.debug("Received log event: %s", event.get("event"))
                 hass.bus.async_fire(DOMAIN + "_event", event)
                 if entry_id is not None:
                     async_dispatcher_send(hass, _log_event_signal(entry_id), event)
