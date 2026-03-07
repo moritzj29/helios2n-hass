@@ -22,6 +22,9 @@ from .coordinator import (
 
 _LOGGER = logging.getLogger(__name__)
 LOG_POLL_TASK = "_log_poll_task"
+RETRY_DELAY_SECONDS = 5
+RESUBSCRIBE_RETRY_ATTEMPTS = 3
+RESUBSCRIBE_RETRY_DELAY_SECONDS = 5
 
 
 def _log_event_signal(entry_id: str) -> str:
@@ -194,6 +197,27 @@ async def _update_port_state_from_log_event(
     updated_data[port_id] = state
     coordinator.async_set_updated_data(updated_data)
 
+
+async def _async_resubscribe_with_retries(device) -> str | None:
+    """Retry resubscribe a few times before giving control back to poll loop."""
+    for attempt in range(1, RESUBSCRIBE_RETRY_ATTEMPTS + 1):
+        try:
+            return await device.log_subscribe()
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:
+            # Short retries here avoid dropping the task for transient subscribe failures.
+            _LOGGER.warning(
+                "Log resubscribe attempt %s/%s failed: %s",
+                attempt,
+                RESUBSCRIBE_RETRY_ATTEMPTS,
+                err,
+                exc_info=err if attempt == RESUBSCRIBE_RETRY_ATTEMPTS else None,
+            )
+            if attempt < RESUBSCRIBE_RETRY_ATTEMPTS:
+                await asyncio.sleep(RESUBSCRIBE_RETRY_DELAY_SECONDS)
+    return None
+
 # Main Log Polling Loop
 # ---------------------
 
@@ -216,26 +240,38 @@ async def poll_log(
         except (DeviceConnectionError, DeviceUnsupportedError) as err:
             retry_count += 1
             if retry_count > max_retries:
+                # Force a new subscription instead of terminating the background task.
                 _LOGGER.error("Max retries exceeded for log polling: %s", err)
-                return
-            await asyncio.sleep(5)
+                new_logid = await _async_resubscribe_with_retries(device)
+                if new_logid is not None:
+                    logid = new_logid
+                retry_count = 0
+                continue
+            await asyncio.sleep(RETRY_DELAY_SECONDS)
         except DeviceApiError as err:
             if err.error == ApiError.INVALID_PARAMETER_VALUE:
-                try:
-                    logid = await device.log_subscribe()
-                    retry_count = 0
-                except Exception as resubscribe_err:
-                    _LOGGER.error("Failed to resubscribe to logs: %s", resubscribe_err)
-                    return
+                new_logid = await _async_resubscribe_with_retries(device)
+                if new_logid is not None:
+                    logid = new_logid
+                retry_count = 0
             else:
                 retry_count += 1
                 if retry_count > max_retries:
                     _LOGGER.error("Max retries exceeded for log polling: %s", err)
-                    return
-                await asyncio.sleep(5)
+                    new_logid = await _async_resubscribe_with_retries(device)
+                    if new_logid is not None:
+                        logid = new_logid
+                    retry_count = 0
+                    continue
+                await asyncio.sleep(RETRY_DELAY_SECONDS)
         except Exception as err:
-            _LOGGER.error("Unexpected error in log polling: %s", err)
+            _LOGGER.exception("Unexpected error in log polling: %s", err)
             retry_count += 1
             if retry_count > max_retries:
-                return
-            await asyncio.sleep(5)
+                _LOGGER.error("Max retries exceeded for unexpected log polling errors")
+                new_logid = await _async_resubscribe_with_retries(device)
+                if new_logid is not None:
+                    logid = new_logid
+                retry_count = 0
+                continue
+            await asyncio.sleep(RETRY_DELAY_SECONDS)
