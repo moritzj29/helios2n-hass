@@ -14,12 +14,17 @@ INTEGRATION_MODULE = sys.modules[poll_log.__module__]
 
 
 @pytest.mark.asyncio
-async def test_poll_log_stops_after_max_retries(monkeypatch):
-	"""poll_log exits after repeated connection failures."""
+async def test_poll_log_resubscribes_after_max_retries(monkeypatch):
+	"""poll_log should resubscribe after max retries instead of exiting."""
 	device = MagicMock()
 	device.log_pull = AsyncMock(
-		side_effect=[DeviceConnectionError("no route"), DeviceConnectionError("no route")]
+		side_effect=[
+			DeviceConnectionError("no route"),
+			DeviceConnectionError("no route"),
+			asyncio.CancelledError(),
+		]
 	)
+	device.log_subscribe = AsyncMock(return_value="new-logid")
 	hass = MagicMock()
 	hass.bus = MagicMock()
 	hass.bus.async_fire = MagicMock()
@@ -27,10 +32,13 @@ async def test_poll_log_stops_after_max_retries(monkeypatch):
 	sleep_mock = AsyncMock()
 	monkeypatch.setattr(INTEGRATION_MODULE.asyncio, "sleep", sleep_mock)
 
-	await poll_log(device, "logid", hass, retry_count=0, max_retries=1)
+	with pytest.raises(asyncio.CancelledError):
+		await poll_log(device, "logid", hass, retry_count=0, max_retries=1)
 
-	assert device.log_pull.await_count == 2
-	assert sleep_mock.await_count == 1
+	assert device.log_subscribe.await_count == 1
+	assert device.log_pull.await_count == 3
+	assert device.log_pull.await_args_list[2].args[0] == "new-logid"
+	assert sleep_mock.await_count >= 1
 
 
 @pytest.mark.asyncio
@@ -40,8 +48,7 @@ async def test_poll_log_invalid_parameter_resubscribes(monkeypatch):
 	device.log_pull = AsyncMock(
 		side_effect=[
 			DeviceApiError(error=ApiError.INVALID_PARAMETER_VALUE),
-			DeviceConnectionError("offline"),
-			DeviceConnectionError("offline"),
+			asyncio.CancelledError(),
 		]
 	)
 	device.log_subscribe = AsyncMock(return_value="new-logid")
@@ -51,7 +58,8 @@ async def test_poll_log_invalid_parameter_resubscribes(monkeypatch):
 
 	monkeypatch.setattr(INTEGRATION_MODULE.asyncio, "sleep", AsyncMock())
 
-	await poll_log(device, "old-logid", hass, retry_count=0, max_retries=1)
+	with pytest.raises(asyncio.CancelledError):
+		await poll_log(device, "old-logid", hass, retry_count=0, max_retries=1)
 
 	assert device.log_subscribe.await_count == 1
 	assert device.log_pull.await_args_list[1].args[0] == "new-logid"
