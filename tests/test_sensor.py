@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from homeassistant.components.sensor import SensorDeviceClass
 
-from ..sensor import Helios2nSensorEntity, SENSOR_TYPES
+from custom_components.helios2n.sensor import Helios2nSensorEntity, SENSOR_TYPES
 
 
 def test_uptime_sensor_uses_seconds_without_timestamp_device_class():

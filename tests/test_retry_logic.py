@@ -7,8 +7,8 @@ import pytest
 from homeassistant.const import Platform
 from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 
-from .. import LOG_POLL_TASK, async_unload_entry, poll_log
-from ..const import DOMAIN, SERVICE_RECAPTURE_CERTIFICATE
+from custom_components.helios2n import LOG_POLL_TASK, async_unload_entry, poll_log
+from custom_components.helios2n.const import DOMAIN, SERVICE_RECAPTURE_CERTIFICATE
 
 INTEGRATION_MODULE = sys.modules[poll_log.__module__]
 

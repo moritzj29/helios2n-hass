@@ -7,8 +7,8 @@ import aiohttp
 import pytest
 from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 
-from .. import config_flow as flow_module
-from ..config_flow import Helios2nConfigFlow, Helios2nOptionsFlow
+from custom_components.helios2n import config_flow as flow_module
+from custom_components.helios2n.config_flow import Helios2nConfigFlow, Helios2nOptionsFlow
 
 VALID_USER_INPUT = {
 	"host": "192.168.1.25",

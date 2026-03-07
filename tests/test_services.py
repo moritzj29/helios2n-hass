@@ -7,14 +7,14 @@ import pytest
 from homeassistant.const import CONF_HOST, CONF_PROTOCOL, CONF_VERIFY_SSL
 from homeassistant.exceptions import ServiceValidationError
 
-from .. import (
+from custom_components.helios2n import (
 	_validate_api_endpoint,
 	_validate_http_method,
 	_validate_payload_consistency,
 	_validate_timeout,
 	async_setup,
 )
-from ..const import (
+from custom_components.helios2n.const import (
     ATTR_CERT_MISMATCH,
     CONF_CERTIFICATE_FINGERPRINT,
     DEFAULT_METHOD,

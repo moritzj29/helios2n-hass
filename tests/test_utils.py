@@ -4,8 +4,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from py2n import Py2NConnectionData
 
-from ..const import DEFAULT_AUTH_METHOD
-from ..utils import (
+from custom_components.helios2n import utils as utils_module
+from custom_components.helios2n.const import DEFAULT_AUTH_METHOD
+from custom_components.helios2n.utils import (
 	async_get_ssl_certificate_fingerprint,
 	create_connection_data,
 	get_ssl_certificate_fingerprint,

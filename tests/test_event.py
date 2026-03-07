@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from ..event import Helios2nSwitchStateChangedEventEntity, async_setup_entry
-from ..const import DOMAIN
+from custom_components.helios2n.event import Helios2nSwitchStateChangedEventEntity, async_setup_entry
+from custom_components.helios2n.const import DOMAIN
 
 
 def _build_device() -> SimpleNamespace:
