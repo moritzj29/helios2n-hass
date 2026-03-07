@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ..button import Helios2nRestartButtonEntity, Helios2nSwitchButtonEntity, async_setup_entry as setup_button
-from ..const import DOMAIN
-from ..lock import Helios2nLockEntity, async_setup_entry as setup_lock
-from ..switch import Helios2nPortSwitchEntity, async_setup_entry as setup_switch
+from custom_components.helios2n.button import Helios2nRestartButtonEntity, Helios2nSwitchButtonEntity, async_setup_entry as setup_button
+from custom_components.helios2n.const import DOMAIN
+from custom_components.helios2n.lock import Helios2nLockEntity, async_setup_entry as setup_lock
+from custom_components.helios2n.switch import Helios2nPortSwitchEntity, async_setup_entry as setup_switch
 
 
 class DummyCoordinator:

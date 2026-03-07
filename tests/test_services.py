@@ -4,15 +4,15 @@ import pytest
 from unittest.mock import MagicMock
 from homeassistant.exceptions import ServiceValidationError
 
-from .. import (
+from custom_components.helios2n import (
 	_validate_api_endpoint,
 	_validate_http_method,
 	_validate_payload_consistency,
 	_validate_timeout,
 )
-from ..const import (
-	DEFAULT_METHOD,
-	DEFAULT_TIMEOUT,
+from custom_components.helios2n.const import (
+    DEFAULT_METHOD,
+    DEFAULT_TIMEOUT,
 )
 
 

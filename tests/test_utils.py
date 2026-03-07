@@ -2,8 +2,9 @@
 import pytest
 from py2n import Py2NConnectionData
 
-from ..const import DEFAULT_AUTH_METHOD
-from ..utils import (
+from custom_components.helios2n import utils as utils_module
+from custom_components.helios2n.const import DEFAULT_AUTH_METHOD
+from custom_components.helios2n.utils import (
 	create_connection_data,
 	normalize_auth_method,
 	sanitize_connection_data,
