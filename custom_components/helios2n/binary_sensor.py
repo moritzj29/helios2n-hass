@@ -2,7 +2,7 @@ import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
@@ -12,6 +12,7 @@ from homeassistant.const import Platform
 from py2n import Py2NDevice
 
 from .const import (
+    ATTR_LOG_SUBSCRIPTION,
     DOMAIN,
     ATTR_CERT_MISMATCH,
     CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
@@ -52,6 +53,9 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
     # Add certificate fingerprint status only for HTTPS with SSL verification disabled.
     if config.data.get(CONF_PROTOCOL) == "https" and not config.data.get(CONF_VERIFY_SSL, True):
         entities.append(Helios2nCertificateMismatchBinarySensorEntity(hass, device, config))
+
+    # Health indicator for the background log subscription loop.
+    entities.append(Helios2nLogSubscriptionHealthBinarySensorEntity(hass, device, config.entry_id))
     
     async_add_entities(entities)
     return True
@@ -113,6 +117,56 @@ class Helios2nCertificateMismatchBinarySensorEntity(BinarySensorEntity):
             and self._config.data.get(CONF_PROTOCOL) == "https"
         )
     
+    @property
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
+            name= self._device.data.name,
+            manufacturer = "2N/Helios",
+            model = self._device.data.model,
+            hw_version = self._device.data.hardware,
+            sw_version = self._device.data.firmware,
+        )
+
+
+class Helios2nLogSubscriptionHealthBinarySensorEntity(BinarySensorEntity):
+    """Diagnostic health entity for log subscription state."""
+
+    _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, hass: HomeAssistant, device: Py2NDevice, entry_id: str) -> None:
+        self.hass = hass
+        self._device = device
+        self._entry_id = entry_id
+        self._attr_unique_id = f"{self._device.data.serial}_log_subscription_healthy"
+        self._attr_name = "Log Subscription Healthy"
+
+    def _subscription_state(self) -> dict:
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self._entry_id, {})
+        state = entry_data.get(ATTR_LOG_SUBSCRIPTION)
+        return state if isinstance(state, dict) else {}
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self._subscription_state().get("healthy", False))
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        state = self._subscription_state()
+        return {
+            "consecutive_failures": state.get("consecutive_failures", 0),
+            "total_failures": state.get("total_failures", 0),
+            "resubscribe_count": state.get("resubscribe_count", 0),
+            "last_error": state.get("last_error"),
+            "last_error_at": state.get("last_error_at"),
+            "last_success_at": state.get("last_success_at"),
+            "last_event_at": state.get("last_event_at"),
+            "last_resubscribe_at": state.get("last_resubscribe_at"),
+        }
+
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
