@@ -355,6 +355,7 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
     entry_data["_device"] = device
     for platform in platforms:
         entry_data.setdefault(platform, {})
+    # Create coordinators
     port_coordinator = Helios2nPortDataUpdateCoordinator(hass, device)
     switch_coordinator = Helios2nSwitchDataUpdateCoordinator(hass, device)
     sensor_coordinator = Helios2nSensorDataUpdateCoordinator(hass, device)

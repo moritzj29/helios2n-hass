@@ -96,6 +96,7 @@ class Helios2nMappingDataUpdateCoordinator(
         """
         if not updates:
             return
+        _LOGGER.debug("Applying event updates: %s", updates)
         self._ensure_state_lock()
         async with self._state_lock:
             current_raw_data = getattr(self, "data", None)
@@ -103,6 +104,7 @@ class Helios2nMappingDataUpdateCoordinator(
             updated_data = dict(current_data)
             updated_data.update(updates)
             if updated_data != current_data:
+                _LOGGER.debug("Event-driven state change from %s to %s", current_data, updated_data)
                 self.async_set_updated_data(updated_data)
 
     async def _raise_unsupported_response_update_failed(
@@ -114,14 +116,17 @@ class Helios2nMappingDataUpdateCoordinator(
         auth_method = getattr(options, "auth_method", "unknown")
         ssl_verify = getattr(options, "ssl_verify", None)
         url = f"{protocol}://{_get_device_host(self.device)}/{endpoint.lstrip('/')}"
+        # Include response payload if available, truncating to avoid huge logs
+        response_repr = repr(err.response)[:500] if getattr(err, "response", None) is not None else "None"
         _LOGGER.error(
-            "Malformed response from original request. host=%s endpoint=%s url=%s auth_method=%s ssl_verify=%s error=%s",
+            "Malformed response from original request. host=%s endpoint=%s url=%s auth_method=%s ssl_verify=%s error=%s response=%s",
             _get_device_host(self.device),
             endpoint,
             url,
             auth_method,
             ssl_verify,
             err,
+            response_repr,
             exc_info=err,
         )
         raise UpdateFailed(f"Device unsupported or malformed response: {err}") from err
