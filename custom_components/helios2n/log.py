@@ -135,6 +135,42 @@ def _extract_port_state_change(event: dict) -> tuple[str, str | int, bool] | Non
         return None
     return event_name, port_identifier, state
 
+
+def _extract_user_authenticated(event: dict) -> dict[str, Any] | None:
+    """Extract user details from a UserAuthenticated log event.
+
+    Expected event structure:
+    {
+        "event": "UserAuthenticated",
+        "params": {
+            "user": <user_id>,
+            "name": <user_name>,
+            "method": <authentication_method>,
+            ...
+        },
+        "utcTime": <timestamp>
+    }
+    """
+    if event.get("event") != "UserAuthenticated":
+        return None
+    params = event.get("params")
+    payload = params if isinstance(params, dict) else event
+
+    # Extract key user information
+    user_id = payload.get("user")
+    user_name = payload.get("name")
+    auth_method = payload.get("method")
+
+    # Return a dict of extracted attributes; at minimum we expect a user identifier
+    if user_id is None and user_name is None:
+        return None
+
+    return {
+        "user_id": user_id,
+        "user_name": user_name,
+        "auth_method": auth_method,
+    }
+
 # Upate State from Events
 # -----------------------
 
