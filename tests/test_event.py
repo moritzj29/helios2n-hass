@@ -60,53 +60,66 @@ def test_switch_state_changed_event_entity_triggers_on_matching_switch():
 
 @pytest.mark.asyncio
 async def test_event_setup_adds_entities_for_enabled_switches():
-    """Only enabled switches should get an event entity, plus user auth event."""
+    """Test that all switches (enabled and disabled) get event entities, plus user auth."""
     device = _build_device()
     hass = SimpleNamespace(data={DOMAIN: {"entry-1": {"_device": device}}})
     config = SimpleNamespace(entry_id="entry-1")
-    entities: list[Helios2nSwitchStateChangedEventEntity] = []
+    entities = []
 
     await async_setup_entry(hass, config, lambda items: entities.extend(items))
 
-    # Should have 1 switch state changed entity for the enabled switch + 1 user authenticated entity
-    assert len(entities) == 2
-    # Find the switch state changed entity
+    # Should have 2 switch state changed entities (for both switches) + 1 user authenticated entity = 3
+    assert len(entities) == 3
+    # Find the switch state changed entities
     switch_entities = [e for e in entities if hasattr(e, '_switch_id')]
-    assert len(switch_entities) == 1
-    assert switch_entities[0]._switch_id == 1
+    assert len(switch_entities) == 2
+    switch_ids = {e._switch_id for e in switch_entities}
+    assert switch_ids == {1, 2}
+    # Check entity_registry_enabled_default: switch 1 enabled=True, switch 2 enabled=False
+    for entity in switch_entities:
+        if entity._switch_id == 1:
+            assert entity._attr_entity_registry_enabled_default is True
+        elif entity._switch_id == 2:
+            assert entity._attr_entity_registry_enabled_default is False
     # Verify user authenticated entity is present
     user_auth_entities = [e for e in entities if isinstance(e, Helios2nUserAuthenticatedEventEntity)]
     assert len(user_auth_entities) == 1
 
 
 @pytest.mark.parametrize(
-    "supported_events, expected_count",
+    "supported_events, expected_total, expected_switch_count",
     [
-        ({"SwitchStateChanged"}, 1),
-        ({"UserAuthenticated"}, 1),
-        ({"SwitchStateChanged", "UserAuthenticated"}, 2),
-        (set(), 2),  # empty => fallback to default
+        ({"SwitchStateChanged"}, 2, 2),
+        ({"UserAuthenticated"}, 1, 0),
+        ({"SwitchStateChanged", "UserAuthenticated"}, 3, 2),
+        (set(), 3, 2),  # empty => fallback to default (includes both)
     ],
 )
 @pytest.mark.asyncio
 async def test_event_setup_creates_entities_based_on_capabilities(
-    supported_events, expected_count
+    supported_events, expected_total, expected_switch_count
 ):
-    """Event entity creation should respect supported_log_events."""
+    """Event entity creation should respect supported_log_events and create entities for all switches."""
     device = _build_device()
     entry_data = {"_device": device, "supported_log_events": supported_events}
     hass = SimpleNamespace(data={DOMAIN: {"entry-1": entry_data}})
     config = SimpleNamespace(entry_id="entry-1")
     entities = []
     await async_setup_entry(hass, config, lambda items: entities.extend(items))
-    assert len(entities) == expected_count
-    has_switch = any(hasattr(e, '_switch_id') for e in entities)
+    assert len(entities) == expected_total
+    # Separate switch entities
+    switch_entities = [e for e in entities if hasattr(e, '_switch_id')]
+    assert len(switch_entities) == expected_switch_count
+    if expected_switch_count > 0:
+        # Check that we have both switch IDs
+        switch_ids = {e._switch_id for e in switch_entities}
+        assert switch_ids == {1, 2}
+        # Check entity_registry_enabled_default based on switch.enabled
+        for entity in switch_entities:
+            expected_enabled = entity._switch_id == 1  # switch 1 enabled, switch 2 disabled
+            assert entity._attr_entity_registry_enabled_default == expected_enabled
+    # Check user auth entity presence
     has_user_auth = any(isinstance(e, Helios2nUserAuthenticatedEventEntity) for e in entities)
-    # Check presence based on supported events or fallback (empty means fallback)
-    if "SwitchStateChanged" in supported_events or not supported_events:
-        assert has_switch
-    else:
-        assert not has_switch
     if "UserAuthenticated" in supported_events or not supported_events:
         assert has_user_auth
     else:
