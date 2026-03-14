@@ -33,9 +33,8 @@ async def async_setup_entry(
     entities = []
     if "SwitchStateChanged" in supported_log_events:
         entities.extend([
-            Helios2nSwitchStateChangedEventEntity(config.entry_id, device, switch.id)
+            Helios2nSwitchStateChangedEventEntity(config.entry_id, device, switch.id, is_enabled=switch.enabled)
             for switch in device.data.switches
-            if switch.enabled
         ])
     if "UserAuthenticated" in supported_log_events:
         entities.append(Helios2nUserAuthenticatedEventEntity(config.entry_id, device))
@@ -50,10 +49,11 @@ class Helios2nSwitchStateChangedEventEntity(EventEntity):
     _attr_event_types = ["on", "off"]
     _attr_entity_registry_enabled_default = True
 
-    def __init__(self, entry_id: str, device: Py2NDevice, switch_id: int) -> None:
+    def __init__(self, entry_id: str, device: Py2NDevice, switch_id: int, is_enabled: bool = True) -> None:
         self._entry_id = entry_id
         self._device = device
         self._switch_id = switch_id
+        self._attr_entity_registry_enabled_default = is_enabled
         self._attr_unique_id = f"{self._device.data.serial}_switch_{switch_id}_state_changed"
         self._attr_name = f"Switch {switch_id} State Changed"
 
