@@ -7,6 +7,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
+from py2n import Py2NDevice
 from py2n.exceptions import (
     ApiError,
     DeviceApiError,
@@ -26,6 +27,23 @@ LOG_POLL_TASK = "_log_poll_task"
 RETRY_DELAY_SECONDS = 5
 RESUBSCRIBE_RETRY_ATTEMPTS = 3
 RESUBSCRIBE_RETRY_DELAY_SECONDS = 5
+
+
+async def async_get_supported_log_events(device: Py2NDevice) -> set[str]:
+    """Fetch supported log event types from the device.
+
+    Returns a set of event names. If the endpoint is unavailable or returns
+    empty, returns an empty set. Caller should handle fallback.
+    """
+    try:
+        result = await device.api_request("/api/log/caps", timeout=10)
+        if result and isinstance(result, dict) and "result" in result:
+            events = result["result"].get("events", [])
+            if isinstance(events, list):
+                return set(events)
+    except Exception as err:
+        _LOGGER.debug("Failed to fetch log capabilities from %s: %s", device.data.host, err)
+    return set()
 
 
 def _log_event_signal(entry_id: str) -> str:

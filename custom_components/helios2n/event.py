@@ -24,13 +24,21 @@ async def async_setup_entry(
 ):
     """Set up Helios/2N event entities."""
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
-    entities = [
-        Helios2nSwitchStateChangedEventEntity(config.entry_id, device, switch.id)
-        for switch in device.data.switches
-        if switch.enabled
-    ]
-    # Add user authentication event entity
-    entities.append(Helios2nUserAuthenticatedEventEntity(config.entry_id, device))
+    entry_data = hass.data[DOMAIN].get(config.entry_id, {})
+    supported_log_events = entry_data.get("supported_log_events", set())
+    # Fallback if capabilities weren't fetched (e.g., during tests or legacy)
+    if not supported_log_events:
+        supported_log_events = {"SwitchStateChanged", "UserAuthenticated", "InputChanged", "OutputChanged"}
+
+    entities = []
+    if "SwitchStateChanged" in supported_log_events:
+        entities.extend([
+            Helios2nSwitchStateChangedEventEntity(config.entry_id, device, switch.id)
+            for switch in device.data.switches
+            if switch.enabled
+        ])
+    if "UserAuthenticated" in supported_log_events:
+        entities.append(Helios2nUserAuthenticatedEventEntity(config.entry_id, device))
     async_add_entities(entities)
     return True
 

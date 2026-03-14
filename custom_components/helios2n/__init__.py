@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, CONF_CERTIFICATE_FINGERPRINT, DEFAULT_AUTH_METHOD, SERVICE_RECAPTURE_CERTIFICATE, ATTR_CERT_MISMATCH, ATTR_LOG_SUBSCRIPTION
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
-from .log import LOG_POLL_TASK, poll_log
+from .log import LOG_POLL_TASK, poll_log, async_get_supported_log_events
 from .utils import sanitize_connection_data, async_get_ssl_certificate_fingerprint, create_connection_data, normalize_auth_method
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.EVENT]
@@ -353,6 +353,24 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
     entry_data = hass.data.setdefault(DOMAIN, {}).setdefault(config.entry_id, {})
     entry_data["_device"] = device
+
+    # Fetch supported log events from device capabilities
+    supported_log_events = await async_get_supported_log_events(device)
+    if not supported_log_events:
+        # Fallback to known events for backward compatibility with older firmware
+        supported_log_events = {"SwitchStateChanged", "UserAuthenticated", "InputChanged", "OutputChanged"}
+        _LOGGER.warning(
+            "Device %s did not report supported log events or /api/log/caps unavailable; "
+            "assuming default event support",
+            config.data[CONF_HOST],
+        )
+    entry_data["supported_log_events"] = supported_log_events
+    _LOGGER.info(
+        "Device %s supports log events: %s",
+        config.data[CONF_HOST],
+        ", ".join(sorted(supported_log_events)),
+    )
+
     for platform in platforms:
         entry_data.setdefault(platform, {})
     # Create coordinators

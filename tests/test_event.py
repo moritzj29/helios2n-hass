@@ -4,7 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from custom_components.helios2n.event import Helios2nSwitchStateChangedEventEntity, async_setup_entry
+from custom_components.helios2n.event import (
+    Helios2nSwitchStateChangedEventEntity,
+    Helios2nUserAuthenticatedEventEntity,
+    async_setup_entry,
+)
 from custom_components.helios2n.const import DOMAIN
 
 
@@ -56,7 +60,7 @@ def test_switch_state_changed_event_entity_triggers_on_matching_switch():
 
 @pytest.mark.asyncio
 async def test_event_setup_adds_entities_for_enabled_switches():
-    """Only enabled switches should get an event entity."""
+    """Only enabled switches should get an event entity, plus user auth event."""
     device = _build_device()
     hass = SimpleNamespace(data={DOMAIN: {"entry-1": {"_device": device}}})
     config = SimpleNamespace(entry_id="entry-1")
@@ -64,5 +68,47 @@ async def test_event_setup_adds_entities_for_enabled_switches():
 
     await async_setup_entry(hass, config, lambda items: entities.extend(items))
 
-    assert len(entities) == 1
-    assert entities[0]._switch_id == 1
+    # Should have 1 switch state changed entity for the enabled switch + 1 user authenticated entity
+    assert len(entities) == 2
+    # Find the switch state changed entity
+    switch_entities = [e for e in entities if hasattr(e, '_switch_id')]
+    assert len(switch_entities) == 1
+    assert switch_entities[0]._switch_id == 1
+    # Verify user authenticated entity is present
+    user_auth_entities = [e for e in entities if isinstance(e, Helios2nUserAuthenticatedEventEntity)]
+    assert len(user_auth_entities) == 1
+
+
+@pytest.mark.parametrize(
+    "supported_events, expected_count",
+    [
+        ({"SwitchStateChanged"}, 1),
+        ({"UserAuthenticated"}, 1),
+        ({"SwitchStateChanged", "UserAuthenticated"}, 2),
+        (set(), 2),  # empty => fallback to default
+    ],
+)
+@pytest.mark.asyncio
+async def test_event_setup_creates_entities_based_on_capabilities(
+    supported_events, expected_count
+):
+    """Event entity creation should respect supported_log_events."""
+    device = _build_device()
+    entry_data = {"_device": device, "supported_log_events": supported_events}
+    hass = SimpleNamespace(data={DOMAIN: {"entry-1": entry_data}})
+    config = SimpleNamespace(entry_id="entry-1")
+    entities = []
+    await async_setup_entry(hass, config, lambda items: entities.extend(items))
+    assert len(entities) == expected_count
+    has_switch = any(hasattr(e, '_switch_id') for e in entities)
+    has_user_auth = any(isinstance(e, Helios2nUserAuthenticatedEventEntity) for e in entities)
+    # Check presence based on supported events or fallback (empty means fallback)
+    if "SwitchStateChanged" in supported_events or not supported_events:
+        assert has_switch
+    else:
+        assert not has_switch
+    if "UserAuthenticated" in supported_events or not supported_events:
+        assert has_user_auth
+    else:
+        assert not has_user_auth
+
