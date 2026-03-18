@@ -11,7 +11,7 @@ from py2n import Py2NDevice
 from py2n.exceptions import DeviceApiError, DeviceUnsupportedError
 
 _LOGGER = logging.getLogger(__name__)
-UPDATE_INTERVAL_SECONDS = 10
+UPDATE_INTERVAL_SECONDS = 30
 COORDINATOR_TIMEOUT_SECONDS = 10
 API_ENDPOINT_IO_STATUS = "/api/io/status"
 API_ENDPOINT_SWITCH_STATUS = "/api/switch/status"
