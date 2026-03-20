@@ -11,6 +11,7 @@ from py2n import Py2NDevice
 
 from .const import DOMAIN, CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
 from .coordinator import Helios2nPortDataUpdateCoordinator
+from .utils import format_port_name
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.SWITCH
@@ -38,7 +39,7 @@ class Helios2nPortSwitchEntity(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._device = device
         self._attr_unique_id = f"{self._device.data.serial}_port_{port_id}"
-        self._attr_name = port_id
+        self._attr_name = format_port_name(port_id)
         self._port_id = port_id
 
     @property

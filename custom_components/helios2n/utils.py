@@ -1,4 +1,6 @@
 """Utility functions for Helios2N integration."""
+import re
+
 from py2n import Py2NConnectionData
 
 from .const import DEFAULT_AUTH_METHOD, SUPPORTED_AUTH_METHODS
@@ -33,6 +35,19 @@ def create_connection_data(
         protocol=protocol,
         ssl_verify=ssl_verify,
     )
+
+
+def format_port_name(port_id: str) -> str:
+    """Format port ID to a user-friendly label (e.g., 'relay1' -> 'Relay 1')."""
+    if not port_id:
+        return port_id
+    # Match non-digits followed by digits at the end (e.g., "relay1" -> "relay", "1")
+    match = re.search(r'(\D+)(\d+)$', port_id)
+    if match:
+        prefix, number = match.groups()
+        return f"{prefix.title()} {number}"
+    # If pattern doesn't match, return as-is
+    return port_id
 
 
 def sanitize_connection_data(connection_data: Py2NConnectionData) -> dict:

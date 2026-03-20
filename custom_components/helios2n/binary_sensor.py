@@ -17,6 +17,7 @@ from .const import (
     DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
 )
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator
+from .utils import format_port_name
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.BINARY_SENSOR
@@ -62,7 +63,7 @@ class Helios2nPortBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
         super().__init__(coordinator)
         self._device = device
         self._attr_unique_id = f"{self._device.data.serial}_port_{port_id}"
-        self._attr_name = port_id
+        self._attr_name = format_port_name(port_id)
         self._port_id = port_id
 
     @property
@@ -186,7 +187,7 @@ class Helios2nOutputStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEnti
         self._device = device
         self._port_id = port_id
         self._attr_unique_id = f"{self._device.data.serial}_port_{port_id}_status"
-        self._attr_name = f"{port_id} Status"
+        self._attr_name = f"{format_port_name(port_id)} Status"
 
     @property
     def is_on(self) -> bool:
