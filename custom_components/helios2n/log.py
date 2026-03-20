@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.const import Platform
@@ -13,7 +14,7 @@ from py2n.exceptions import (
     DeviceUnsupportedError,
 )
 
-from .const import DOMAIN
+from .const import ATTR_LOG_SUBSCRIPTION, DOMAIN
 from .coordinator import (
     Helios2nMappingDataUpdateCoordinator,
     Helios2nPortDataUpdateCoordinator,
@@ -30,6 +31,72 @@ RESUBSCRIBE_RETRY_DELAY_SECONDS = 5
 def _log_event_signal(entry_id: str) -> str:
     """Return dispatcher signal name for a config entry."""
     return f"{DOMAIN}_{entry_id}_log_event"
+
+
+def _utc_now_iso() -> str:
+    """Return current UTC timestamp for diagnostics attributes."""
+    return datetime.now(UTC).isoformat()
+
+
+def _get_or_create_log_subscription_state(
+    hass: HomeAssistant, entry_id: str | None
+) -> dict[str, Any] | None:
+    if entry_id is None:
+        return None
+    entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
+    if not isinstance(entry_data, dict):
+        return None
+    state = entry_data.get(ATTR_LOG_SUBSCRIPTION)
+    if isinstance(state, dict):
+        return state
+    state = {
+        "healthy": True,
+        "consecutive_failures": 0,
+        "total_failures": 0,
+        "resubscribe_count": 0,
+        "last_error": None,
+        "last_error_at": None,
+        "last_success_at": None,
+        "last_event_at": None,
+        "last_resubscribe_at": None,
+    }
+    entry_data[ATTR_LOG_SUBSCRIPTION] = state
+    return state
+
+
+def _mark_log_success(hass: HomeAssistant, entry_id: str | None) -> None:
+    state = _get_or_create_log_subscription_state(hass, entry_id)
+    if state is None:
+        return
+    state["healthy"] = True
+    state["consecutive_failures"] = 0
+    state["last_success_at"] = _utc_now_iso()
+
+
+def _mark_log_event_seen(hass: HomeAssistant, entry_id: str | None) -> None:
+    state = _get_or_create_log_subscription_state(hass, entry_id)
+    if state is None:
+        return
+    state["last_event_at"] = _utc_now_iso()
+
+
+def _mark_log_failure(hass: HomeAssistant, entry_id: str | None, err: Exception) -> None:
+    state = _get_or_create_log_subscription_state(hass, entry_id)
+    if state is None:
+        return
+    state["healthy"] = False
+    state["consecutive_failures"] = int(state.get("consecutive_failures", 0)) + 1
+    state["total_failures"] = int(state.get("total_failures", 0)) + 1
+    state["last_error"] = f"{type(err).__name__}: {err}"
+    state["last_error_at"] = _utc_now_iso()
+
+
+def _mark_log_resubscribe(hass: HomeAssistant, entry_id: str | None) -> None:
+    state = _get_or_create_log_subscription_state(hass, entry_id)
+    if state is None:
+        return
+    state["resubscribe_count"] = int(state.get("resubscribe_count", 0)) + 1
+    state["last_resubscribe_at"] = _utc_now_iso()
 
 # Match Specific Events and Extract Parameters
 # --------------------------------------------
@@ -225,19 +292,23 @@ async def poll_log(
     device, logid, hass, entry_id: str | None = None, retry_count=0, max_retries=5
 ):
     """Poll device logs with retry mechanism."""
+    _get_or_create_log_subscription_state(hass, entry_id)
     while True:
         try:
             for event in await device.log_pull(logid, timeout=30):
                 _LOGGER.debug("Received log event: %s", event.get("event"))
                 hass.bus.async_fire(DOMAIN + "_event", event)
+                _mark_log_event_seen(hass, entry_id)
                 if entry_id is not None:
                     async_dispatcher_send(hass, _log_event_signal(entry_id), event)
                     await _update_switch_state_from_log_event(hass, entry_id, event)
                     await _update_port_state_from_log_event(hass, entry_id, event)
             retry_count = 0  # Reset on successful poll
+            _mark_log_success(hass, entry_id)
         except asyncio.CancelledError:
             raise
         except (DeviceConnectionError, DeviceUnsupportedError) as err:
+            _mark_log_failure(hass, entry_id, err)
             retry_count += 1
             if retry_count > max_retries:
                 # Force a new subscription instead of terminating the background task.
@@ -245,14 +316,19 @@ async def poll_log(
                 new_logid = await _async_resubscribe_with_retries(device)
                 if new_logid is not None:
                     logid = new_logid
+                    _mark_log_resubscribe(hass, entry_id)
+                    _mark_log_success(hass, entry_id)
                 retry_count = 0
                 continue
             await asyncio.sleep(RETRY_DELAY_SECONDS)
         except DeviceApiError as err:
+            _mark_log_failure(hass, entry_id, err)
             if err.error == ApiError.INVALID_PARAMETER_VALUE:
                 new_logid = await _async_resubscribe_with_retries(device)
                 if new_logid is not None:
                     logid = new_logid
+                    _mark_log_resubscribe(hass, entry_id)
+                    _mark_log_success(hass, entry_id)
                 retry_count = 0
             else:
                 retry_count += 1
@@ -261,10 +337,13 @@ async def poll_log(
                     new_logid = await _async_resubscribe_with_retries(device)
                     if new_logid is not None:
                         logid = new_logid
+                        _mark_log_resubscribe(hass, entry_id)
+                        _mark_log_success(hass, entry_id)
                     retry_count = 0
                     continue
                 await asyncio.sleep(RETRY_DELAY_SECONDS)
         except Exception as err:
+            _mark_log_failure(hass, entry_id, err)
             _LOGGER.exception("Unexpected error in log polling: %s", err)
             retry_count += 1
             if retry_count > max_retries:
@@ -272,6 +351,8 @@ async def poll_log(
                 new_logid = await _async_resubscribe_with_retries(device)
                 if new_logid is not None:
                     logid = new_logid
+                    _mark_log_resubscribe(hass, entry_id)
+                    _mark_log_success(hass, entry_id)
                 retry_count = 0
                 continue
             await asyncio.sleep(RETRY_DELAY_SECONDS)

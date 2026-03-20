@@ -9,12 +9,13 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from py2n.exceptions import DeviceUnsupportedError
 
 from custom_components.helios2n.binary_sensor import (
+    Helios2nLogSubscriptionHealthBinarySensorEntity,
     Helios2nOutputStatusBinarySensorEntity,
     Helios2nPortBinarySensorEntity,
     Helios2nSwitchStatusBinarySensorEntity,
     async_setup_entry as setup_binary_sensor,
 )
-from custom_components.helios2n.const import DOMAIN
+from custom_components.helios2n.const import ATTR_LOG_SUBSCRIPTION, DOMAIN
 from custom_components.helios2n.coordinator import (
     API_ENDPOINT_IO_STATUS,
     API_ENDPOINT_SWITCH_STATUS,
@@ -251,3 +252,43 @@ async def test_binary_sensor_setup_adds_read_only_status_entities_when_enabled()
     added_entities = async_add_entities.call_args.args[0]
     assert any(isinstance(entity, Helios2nOutputStatusBinarySensorEntity) for entity in added_entities)
     assert any(isinstance(entity, Helios2nSwitchStatusBinarySensorEntity) for entity in added_entities)
+
+
+def test_log_subscription_health_binary_sensor_reads_diagnostic_state():
+    """Log subscription health entity should expose loop diagnostics."""
+    hass = MagicMock()
+    hass.data = {
+        DOMAIN: {
+            "entry-1": {
+                ATTR_LOG_SUBSCRIPTION: {
+                    "healthy": True,
+                    "consecutive_failures": 0,
+                    "total_failures": 2,
+                    "resubscribe_count": 1,
+                    "last_error": "DeviceConnectionError: offline",
+                    "last_error_at": "2026-03-07T09:00:00+00:00",
+                    "last_success_at": "2026-03-07T09:01:00+00:00",
+                    "last_event_at": "2026-03-07T09:01:05+00:00",
+                    "last_resubscribe_at": "2026-03-07T09:00:30+00:00",
+                }
+            }
+        }
+    }
+    device = SimpleNamespace(
+        data=SimpleNamespace(
+            serial="SER",
+            mac="M",
+            name="N",
+            model="X",
+            hardware="H",
+            firmware="F",
+        )
+    )
+    entity = Helios2nLogSubscriptionHealthBinarySensorEntity(hass, device, "entry-1")
+
+    assert entity.is_on is True
+    attrs = entity.extra_state_attributes
+    assert attrs["consecutive_failures"] == 0
+    assert attrs["total_failures"] == 2
+    assert attrs["resubscribe_count"] == 1
+    assert attrs["last_error"] == "DeviceConnectionError: offline"

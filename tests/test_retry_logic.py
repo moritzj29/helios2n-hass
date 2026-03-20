@@ -8,7 +8,7 @@ from homeassistant.const import Platform
 from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 
 from custom_components.helios2n import LOG_POLL_TASK, async_unload_entry, poll_log
-from custom_components.helios2n.const import DOMAIN
+from custom_components.helios2n.const import ATTR_LOG_SUBSCRIPTION, DOMAIN
 
 INTEGRATION_MODULE = sys.modules[poll_log.__module__]
 
@@ -28,17 +28,23 @@ async def test_poll_log_resubscribes_after_max_retries(monkeypatch):
 	hass = MagicMock()
 	hass.bus = MagicMock()
 	hass.bus.async_fire = MagicMock()
+	hass.data = {DOMAIN: {"entry-1": {}}}
 
 	sleep_mock = AsyncMock()
 	monkeypatch.setattr(INTEGRATION_MODULE.asyncio, "sleep", sleep_mock)
 
 	with pytest.raises(asyncio.CancelledError):
-		await poll_log(device, "logid", hass, retry_count=0, max_retries=1)
+		await poll_log(device, "logid", hass, entry_id="entry-1", retry_count=0, max_retries=1)
 
 	assert device.log_subscribe.await_count == 1
 	assert device.log_pull.await_count == 3
 	assert device.log_pull.await_args_list[2].args[0] == "new-logid"
 	assert sleep_mock.await_count >= 1
+
+	state = hass.data[DOMAIN]["entry-1"][ATTR_LOG_SUBSCRIPTION]
+	assert state["resubscribe_count"] == 1
+	assert state["total_failures"] >= 2
+	assert state["healthy"] is True
 
 
 @pytest.mark.asyncio
