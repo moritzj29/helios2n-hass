@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from ..binary_sensor import Helios2nPortBinarySensorEntity
+from ..binary_sensor import (
+    Helios2nOutputStatusBinarySensorEntity,
+    Helios2nPortBinarySensorEntity,
+    Helios2nSwitchStatusBinarySensorEntity,
+    async_setup_entry as setup_binary_sensor,
+)
+from ..const import DOMAIN
 from ..coordinator import (
     API_ENDPOINT_IO_STATUS,
     API_ENDPOINT_SWITCH_STATUS,
@@ -121,3 +127,47 @@ def test_binary_sensor_reads_state_from_coordinator_mapping():
     entity._port_id = "input1"
 
     assert entity.is_on is True
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_setup_adds_read_only_status_entities_when_enabled():
+    """Read-only switch/output status entities should be created when enabled."""
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="SER",
+        name="N",
+        mac="M",
+        model="X",
+        hardware="H",
+        firmware="F",
+        ports=[
+            SimpleNamespace(id="input1", type="input", state=True),
+            SimpleNamespace(id="relay1", type="output", state=False),
+        ],
+        switches=[SimpleNamespace(id=1, enabled=True), SimpleNamespace(id=2, enabled=False)],
+    )
+    hass = MagicMock()
+    hass.data = {
+        DOMAIN: {
+            "entry-1": {
+                "_device": device,
+                "binary_sensor": {"coordinator": SimpleNamespace(data={"input1": True, "relay1": False})},
+                "lock": {"coordinator": SimpleNamespace(data={1: True, 2: False})},
+            }
+        }
+    }
+    config = SimpleNamespace(
+        entry_id="entry-1",
+        data={
+            "protocol": "https",
+            "verify_ssl": False,
+            "create_read_only_status_entities": True,
+        },
+    )
+    async_add_entities = MagicMock()
+
+    await setup_binary_sensor(hass, config, async_add_entities)
+
+    added_entities = async_add_entities.call_args.args[0]
+    assert any(isinstance(entity, Helios2nOutputStatusBinarySensorEntity) for entity in added_entities)
+    assert any(isinstance(entity, Helios2nSwitchStatusBinarySensorEntity) for entity in added_entities)
