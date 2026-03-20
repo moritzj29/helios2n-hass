@@ -356,9 +356,27 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                 )
 
+        # Build defaults from user_input to retain values on error
+        if user_input is None:
+            user_input = {}
         return self.async_show_form(
             step_id="user",
-            data_schema=_build_user_form_schema(),
+            data_schema=_build_user_form_schema(
+                host_default=user_input.get(CONF_HOST, ""),
+                username_default=user_input.get(CONF_USERNAME, ""),
+                password_default=user_input.get(CONF_PASSWORD, ""),
+                protocol_default=user_input.get(CONF_PROTOCOL, DEFAULT_PROTOCOL),
+                auth_method_default=user_input.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD),
+                verify_ssl_default=user_input.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+                create_read_only_status_entities_default=user_input.get(
+                    CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+                    DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+                ),
+                disable_control_entities_default=user_input.get(
+                    CONF_DISABLE_CONTROL_ENTITIES,
+                    DEFAULT_DISABLE_CONTROL_ENTITIES,
+                ),
+            ),
             errors=errors
         )
 
