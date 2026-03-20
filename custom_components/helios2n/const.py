@@ -8,3 +8,4 @@ DEFAULT_TIMEOUT = 10
 ATTR_DATA = "data"
 ATTR_JSON = "json"
 ATTR_ENTRY = "entry"
+DEFAULT_VERIFY_SSL = True

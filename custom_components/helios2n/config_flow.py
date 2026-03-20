@@ -1,14 +1,14 @@
 import logging
 from typing import Any
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL, CONF_VERIFY_SSL
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import selector
 import aiohttp
 import voluptuous as vol
 from py2n import Py2NDevice, Py2NConnectionData
 from py2n.exceptions import DeviceApiError
-from .const import DOMAIN
+from .const import DOMAIN, DEFAULT_VERIFY_SSL
 from .utils import sanitize_connection_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,6 +69,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_HOST: user_input[CONF_HOST],
                         CONF_PROTOCOL: user_input[CONF_PROTOCOL],
+						CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
                     },
                     options={
                         CONF_USERNAME: user_input[CONF_USERNAME],
@@ -89,6 +90,10 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             "mode": "dropdown",
                         },
                     }),
+				vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL):
+					selector({
+						"boolean": {},
+					}),
             }),
             errors=errors
         )
