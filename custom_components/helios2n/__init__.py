@@ -7,17 +7,17 @@ from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, Platform
+from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, CONF_VERIFY_SSL, Platform
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
-from py2n import Py2NDevice, Py2NConnectionData
+from py2n import Py2NDevice
 from py2n.exceptions import DeviceConnectionError, DeviceUnsupportedError, DeviceApiError, ApiError, Py2NError
 
 _LOGGER = logging.getLogger(__name__)
 
-from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY
+from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
-from .utils import sanitize_connection_data
+from .utils import sanitize_connection_data, create_connection_data, normalize_auth_method
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR]
 LOG_POLL_TASK = "_log_poll_task"
@@ -161,13 +161,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
     try:
         aiohttp_session = async_get_clientsession(hass)
-        connection_data = Py2NConnectionData(
+        auth_method = normalize_auth_method(config.data.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD))
+        connection_data = create_connection_data(
             host=config.data[CONF_HOST],
             username=config.options.get(CONF_USERNAME, config.data.get(CONF_USERNAME, "")),
             password=config.options.get(CONF_PASSWORD, config.data.get(CONF_PASSWORD, "")),
-            protocol=config.data[CONF_PROTOCOL]
+            protocol=config.data[CONF_PROTOCOL],
+            auth_method=auth_method,
+            ssl_verify=config.data.get(CONF_VERIFY_SSL, True),
         )
-        _LOGGER.debug("Connecting to device: %s", sanitize_connection_data(connection_data))
+        _LOGGER.debug(
+            "Connecting to device: %s",
+            sanitize_connection_data(connection_data) | {CONF_AUTH_METHOD: auth_method},
+        )
         device = await Py2NDevice.create(aiohttp_session, connection_data)
     except Exception as err:
         raise HomeAssistantError(f"Failed to connect to Helios/2N device: {err}") from err

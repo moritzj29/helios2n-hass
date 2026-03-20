@@ -8,4 +8,7 @@ DEFAULT_TIMEOUT = 10
 ATTR_DATA = "data"
 ATTR_JSON = "json"
 ATTR_ENTRY = "entry"
+CONF_AUTH_METHOD = "auth_method"
+DEFAULT_AUTH_METHOD = "basic"
+SUPPORTED_AUTH_METHODS = ("basic", "digest")
 DEFAULT_VERIFY_SSL = True

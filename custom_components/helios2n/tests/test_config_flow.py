@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
-from py2n.exceptions import ApiError, DeviceApiError
+from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 
 from .. import config_flow as flow_module
 from ..config_flow import Helios2nConfigFlow, Helios2nOptionsFlow
@@ -15,6 +15,7 @@ VALID_USER_INPUT = {
 	"username": "homeassistant",
 	"password": "secret",
 	"protocol": "https",
+	"auth_method": "basic",
 	"verify_ssl": False,
 }
 
@@ -34,6 +35,7 @@ def _new_options_flow(mock_hass) -> tuple[Helios2nOptionsFlow, MagicMock]:
 	config_entry.data = {
 		"host": "192.168.1.10",
 		"protocol": "https",
+		"auth_method": "basic",
 		"verify_ssl": True,
 	}
 	config_entry.options = {
@@ -169,6 +171,7 @@ async def test_async_step_user_logs_error_on_failure(mock_hass):
 		"username": "***",
 		"password": "***",
 		"protocol": VALID_USER_INPUT["protocol"],
+		"auth_method": VALID_USER_INPUT["auth_method"],
 		"verify_ssl": VALID_USER_INPUT["verify_ssl"],
 	}
 
@@ -180,10 +183,27 @@ async def test_async_step_user_logs_error_on_failure(mock_hass):
 		await flow.async_step_user(VALID_USER_INPUT)
 
 	assert error_log.call_count == 1
-	assert error_log.call_args.args[0] == "Connection test failed: network/client error %s; payload=%s"
-	assert isinstance(error_log.call_args.args[1], aiohttp.ClientError)
-	assert str(error_log.call_args.args[1]) == "network"
-	assert error_log.call_args.args[2] == expected_payload
+	assert error_log.call_args.args[0] == "Connection test failed: network/client error (%s: %r); payload=%s"
+	assert error_log.call_args.args[1] == "ClientError"
+	assert isinstance(error_log.call_args.args[2], aiohttp.ClientError)
+	assert str(error_log.call_args.args[2]) == "network"
+	assert error_log.call_args.args[3] == expected_payload
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_maps_wrapped_timeout_to_timeout_error(mock_hass):
+	"""Wrapped timeout in DeviceConnectionError should map to timeout_error."""
+	flow = _new_flow(mock_hass)
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(side_effect=DeviceConnectionError(asyncio.TimeoutError())),
+	):
+		result = await flow.async_step_user(VALID_USER_INPUT)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "timeout_error"
 
 
 @pytest.mark.asyncio
@@ -197,6 +217,7 @@ async def test_async_step_user_logs_info_on_success(mock_hass):
 		"username": "***",
 		"password": "***",
 		"protocol": user_input["protocol"],
+		"auth_method": user_input["auth_method"],
 		"verify_ssl": True,
 	}
 
@@ -224,6 +245,7 @@ async def test_async_step_user_logs_invalid_protocol_with_sanitized_payload(mock
 		"username": "***",
 		"password": "***",
 		"protocol": "ftp",
+		"auth_method": user_input["auth_method"],
 		"verify_ssl": user_input["verify_ssl"],
 	}
 
@@ -249,6 +271,7 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 		"username": "new_user",
 		"password": "new_pass",
 		"protocol": "HTTPS",
+		"auth_method": "basic",
 		"verify_ssl": False,
 	}
 	mock_device = SimpleNamespace(data=SimpleNamespace(name="Door Intercom"))
@@ -269,6 +292,7 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 			**config_entry.data,
 			"host": "192.168.1.55",
 			"protocol": "https",
+			"auth_method": "basic",
 			"verify_ssl": False,
 		},
 		options={
@@ -289,6 +313,7 @@ async def test_options_flow_returns_invalid_protocol_error(mock_hass):
 		"username": "new_user",
 		"password": "new_pass",
 		"protocol": "ftp",
+		"auth_method": "basic",
 		"verify_ssl": True,
 	}
 
@@ -297,3 +322,15 @@ async def test_options_flow_returns_invalid_protocol_error(mock_hass):
 	assert result["type"] == "form"
 	assert result["step_id"] == "init"
 	assert result["errors"]["base"] == "invalid_protocol"
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_rejects_invalid_auth_method(mock_hass):
+	"""Invalid auth method values should be rejected with explicit error."""
+	flow = _new_flow(mock_hass)
+	user_input = {**VALID_USER_INPUT, "auth_method": "token"}
+
+	result = await flow.async_step_user(user_input)
+
+	assert result["type"] == "form"
+	assert result["errors"]["base"] == "invalid_auth_method"
