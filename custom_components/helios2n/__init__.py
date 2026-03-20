@@ -1,4 +1,9 @@
-from homeassistant.core import HomeAssistant
+import asyncio
+import logging
+from asyncio import TimeoutError
+
+from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, Platform
@@ -53,7 +58,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 	# Return boolean to indicate that initialization was successful.
 	return True
 
-async def async_setup_entry(hass: HomeAssistant, config: ConfigType) -> bool:
+async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 	aiohttp_session = async_get_clientsession(hass)
 	connection_data = Py2NConnectionData(
 		host=config.data[CONF_HOST],

@@ -11,5 +11,6 @@
 		"py2n==0.5.0"
 	],
 	"version": "0.4.0",
-	"config_flow": true
+	"config_flow": true,
+	"homeassistant": "2023.12.0"
 }

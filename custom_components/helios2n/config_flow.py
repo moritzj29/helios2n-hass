@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Coroutine
+from typing import Any
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL
 import homeassistant.helpers.config_validation as cv
@@ -23,10 +23,7 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            return self.async_abort_and_create_entry(
-                title="",
-                data=user_input
-            )
+            return self.async_create_entry(title="", data=user_input)
 
         options_schema = vol.Schema({
             vol.Required(
@@ -49,7 +46,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Helios/2n config flow"""
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> Coroutine[Any, Any, config_entries.FlowResult]:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
         errors = {}
         if user_input is not None:
             connect_options = Py2NConnectionData(host=user_input[CONF_HOST], username=user_input[CONF_USERNAME], password=user_input[CONF_PASSWORD], protocol=user_input[CONF_PROTOCOL])
