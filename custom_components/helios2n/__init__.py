@@ -55,7 +55,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType) -> bool:
 	aiohttp_session = async_get_clientsession(hass)
-	connection_data = Py2NConnectionData(host= config.data[CONF_HOST], username=config.data[CONF_USERNAME], password=config.data[CONF_PASSWORD], protocol=config.data[CONF_PROTOCOL])
+	connection_data = Py2NConnectionData(
+		host=config.data[CONF_HOST],
+		username=config.options.get(CONF_USERNAME, config.data.get(CONF_USERNAME, "")),
+		password=config.options.get(CONF_PASSWORD, config.data.get(CONF_PASSWORD, "")),
+		protocol=config.data[CONF_PROTOCOL]
+	)
 	device = await Py2NDevice.create(aiohttp_session, connection_data)
 	entry_data = hass.data.setdefault(DOMAIN,{}).setdefault(config.entry_id,{})
 	entry_data["_device"] = device
