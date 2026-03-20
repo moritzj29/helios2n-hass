@@ -101,10 +101,10 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             "mode": "dropdown",
                         },
                     }),
-				vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL):
-					selector({
-						"boolean": {},
-					}),
+                vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL):
+                    selector({
+                        "boolean": {},
+                    }),
             }),
             errors=errors
         )
