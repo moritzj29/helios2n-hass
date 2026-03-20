@@ -359,3 +359,31 @@ async def test_async_step_user_rejects_invalid_auth_method(mock_hass):
 
 	assert result["type"] == "form"
 	assert result["errors"]["base"] == "invalid_auth_method"
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_creates_entry_successfully(mock_hass):
+	"""Successful validation should create entry."""
+	flow = _new_flow(mock_hass)
+	mock_device = SimpleNamespace(data=SimpleNamespace(serial="SER123", name="Door Intercom"))
+
+	with patch.object(
+		flow_module.Py2NDevice,
+		"create",
+		new=AsyncMock(return_value=mock_device),
+	):
+		result = await flow.async_step_user(VALID_USER_INPUT)
+
+	assert result["type"] == "create_entry"
+	assert result["title"] == "Door Intercom"
+	assert result["data"]["host"] == VALID_USER_INPUT["host"]
+	assert result["data"]["protocol"] == "https"
+	assert result["data"]["auth_method"] == "basic"
+	assert result["data"]["verify_ssl"] is False
+	assert result["data"]["create_read_only_status_entities"] is False
+	assert result["data"]["disable_control_entities"] is False
+	assert result["options"]["username"] == VALID_USER_INPUT["username"]
+	assert result["options"]["password"] == VALID_USER_INPUT["password"]
+	assert flow.async_set_unique_id.await_count == 1
+	assert flow.async_set_unique_id.await_args.args == ("SER123",)
+	assert flow._abort_if_unique_id_configured.call_count == 1
