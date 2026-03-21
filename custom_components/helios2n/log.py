@@ -351,12 +351,19 @@ async def poll_log(
         try:
             for event in await device.log_pull(logid, timeout=30):
                 _LOGGER.debug("Received log event: %s", event.get("event"))
-                hass.bus.async_fire(DOMAIN + "_event", event)
+                # Enrich event with device identification
+                enriched_event = {
+                    **event,
+                    "device_serial": device.data.serial,
+                    "device_name": device.data.name,
+                    "config_entry_id": entry_id,
+                }
+                hass.bus.async_fire(DOMAIN + "_event", enriched_event)
                 _mark_log_event_seen(hass, entry_id)
                 if entry_id is not None:
-                    async_dispatcher_send(hass, _log_event_signal(entry_id), event)
-                    await _update_switch_state_from_log_event(hass, entry_id, event)
-                    await _update_port_state_from_log_event(hass, entry_id, event)
+                    async_dispatcher_send(hass, _log_event_signal(entry_id), enriched_event)
+                    await _update_switch_state_from_log_event(hass, entry_id, enriched_event)
+                    await _update_port_state_from_log_event(hass, entry_id, enriched_event)
             retry_count = 0  # Reset on successful poll
             _mark_log_success(hass, entry_id)
         except asyncio.CancelledError:

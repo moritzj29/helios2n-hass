@@ -147,11 +147,14 @@ def test_get_device_info_returns_complete_structure():
 	)
 	device_info = get_device_info(mock_device)
 	assert device_info["identifiers"] == {("helios2n", "ABC123"), ("helios2n", "aa:bb:cc:dd:ee:ff")}
+	assert device_info["connections"] == {("mac", "aa:bb:cc:dd:ee:ff")}
 	assert device_info["name"] == "Door Entry"
 	assert device_info["manufacturer"] == "2N/Helios"
 	assert device_info["model"] == "IP Verso"
+	assert device_info["serial_number"] == "ABC123"
 	assert device_info["hw_version"] == "1.0.0"
 	assert device_info["sw_version"] == "2.0.0"
+	assert device_info["configuration_url"] == "https://192.168.1.100"
 
 
 def test_get_device_info_with_none_optional_fields():
@@ -170,9 +173,13 @@ def test_get_device_info_with_none_optional_fields():
 	)
 	device_info = get_device_info(mock_device)
 	assert device_info["identifiers"] == {("helios2n", "SN123"), ("helios2n", "11:22:33:44:55:66")}
+	assert device_info["connections"] == {("mac", "11:22:33:44:55:66")}
 	assert device_info["name"] is None
 	assert device_info["manufacturer"] == "2N/Helios"
 	assert device_info["model"] is None
+	assert device_info["serial_number"] == "SN123"
 	assert device_info["hw_version"] is None
 	assert device_info["sw_version"] is None
+	assert device_info["configuration_url"] == "http://192.168.1.200"
+
 

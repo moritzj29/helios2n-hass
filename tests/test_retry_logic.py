@@ -1,6 +1,7 @@
 """Tests for retry mechanism and task lifecycle in log polling."""
 import asyncio
 import sys
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -205,3 +206,40 @@ async def test_log_polling_watchdog_restarts_task_after_unexpected_exit(monkeypa
 		running_task.cancel()
 		with pytest.raises(asyncio.CancelledError):
 			await running_task
+
+
+@pytest.mark.asyncio
+async def test_poll_log_enriches_events_with_device_identifiers(monkeypatch):
+	"""Events should include device_serial, device_name, and config_entry_id."""
+	device = MagicMock()
+	device.data = SimpleNamespace(serial="SER123", name="Test Device")
+	device.log_pull = AsyncMock(
+		side_effect=[
+			[{"event": "SwitchStateChanged", "params": {"switch": 1, "state": True}}],
+			asyncio.CancelledError(),
+		]
+	)
+	hass = MagicMock()
+	hass.bus = MagicMock()
+	hass.bus.async_fire = MagicMock()
+	hass.data = {DOMAIN: {"entry-1": {}}}
+	# Mock async_dispatcher_send
+	dispatcher_mock = MagicMock()
+	monkeypatch.setattr(INTEGRATION_MODULE, "async_dispatcher_send", dispatcher_mock)
+
+	with pytest.raises(asyncio.CancelledError):
+		await poll_log(device, "logid", hass, entry_id="entry-1")
+
+	# Verify event bus fired with enriched event
+	assert hass.bus.async_fire.called
+	event_type, event_data = hass.bus.async_fire.call_args.args
+	assert event_type == DOMAIN + "_event"
+	assert event_data["event"] == "SwitchStateChanged"
+	assert event_data["device_serial"] == "SER123"
+	assert event_data["device_name"] == "Test Device"
+	assert event_data["config_entry_id"] == "entry-1"
+
+	# Verify dispatcher also received enriched event
+	assert dispatcher_mock.called
+	expected_signal = f"{DOMAIN}_entry-1_log_event"
+	dispatcher_mock.assert_called_once_with(hass, expected_signal, event_data)

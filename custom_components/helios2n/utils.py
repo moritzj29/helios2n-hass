@@ -55,11 +55,14 @@ def get_device_info(device: Py2NDevice) -> DeviceInfo:
     """Create standardized DeviceInfo for Helios/2N devices."""
     return DeviceInfo(
         identifiers={(DOMAIN, device.data.serial), (DOMAIN, device.data.mac)},
+        connections={("mac", device.data.mac)},
         name=device.data.name,
         manufacturer="2N/Helios",
         model=device.data.model,
+        serial_number=device.data.serial,
         hw_version=device.data.hardware,
         sw_version=device.data.firmware,
+        configuration_url=f"{device.options.protocol}://{device.data.host}",
     )
 
 
