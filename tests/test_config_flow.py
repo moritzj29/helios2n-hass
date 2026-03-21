@@ -9,6 +9,18 @@ from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError, Dev
 
 from custom_components.helios2n import config_flow as flow_module
 from custom_components.helios2n.config_flow import Helios2nConfigFlow, Helios2nOptionsFlow
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    CONF_PROTOCOL,
+    CONF_VERIFY_SSL,
+)
+from custom_components.helios2n.const import (
+    CONF_AUTH_METHOD,
+    CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+    CONF_DISABLE_CONTROL_ENTITIES,
+)
 
 VALID_USER_INPUT = {
 	"host": "192.168.1.25",
@@ -387,3 +399,42 @@ async def test_async_step_user_creates_entry_successfully(mock_hass):
 	assert flow.async_set_unique_id.await_count == 1
 	assert flow.async_set_unique_id.await_args.args == ("SER123",)
 	assert flow._abort_if_unique_id_configured.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_async_step_user_retains_values_on_validation_error(mock_hass):
+	"""When validation fails, the form should retain entered values as defaults."""
+	flow = _new_flow(mock_hass)
+	# Trigger a validation error (invalid protocol)
+	user_input = {
+		"host": "192.168.1.25",
+		"username": "homeassistant",
+		"password": "secret",
+		"protocol": "ftp",  # Invalid
+		"auth_method": "basic",
+		"verify_ssl": False,
+		"create_read_only_status_entities": True,
+		"disable_control_entities": True,
+	}
+	result = await flow.async_step_user(user_input)
+
+	assert result["type"] == "form"
+	assert result["step_id"] == "user"
+	assert result["errors"]["base"] == "invalid_protocol"
+
+	# Verify that the entered values are passed as defaults to the schema builder.
+	with patch.object(flow_module, '_build_user_form_schema', wraps=flow_module._build_user_form_schema) as mock_build:
+		# Need to re-invoke the flow since we already consumed the first call
+		flow2 = _new_flow(mock_hass)
+		result2 = await flow2.async_step_user(user_input)
+		assert mock_build.called
+		kwargs = mock_build.call_args.kwargs
+		assert kwargs['host_default'] == user_input[CONF_HOST]
+		assert kwargs['username_default'] == user_input[CONF_USERNAME]
+		assert kwargs['password_default'] == user_input[CONF_PASSWORD]
+		assert kwargs['protocol_default'] == user_input["protocol"]  # 'ftp'
+		assert kwargs['auth_method_default'] == user_input[CONF_AUTH_METHOD]
+		assert kwargs['verify_ssl_default'] == user_input[CONF_VERIFY_SSL]
+		assert kwargs['create_read_only_status_entities_default'] == user_input[CONF_CREATE_READ_ONLY_STATUS_ENTITIES]
+		assert kwargs['disable_control_entities_default'] == user_input[CONF_DISABLE_CONTROL_ENTITIES]
+

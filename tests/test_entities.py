@@ -210,3 +210,276 @@ async def test_switch_entity_controls_port_and_refreshes():
 	assert device.set_port.await_args_list[0].args == ("relay1", True)
 	assert device.set_port.await_args_list[1].args == ("relay1", False)
 	assert coordinator.async_request_refresh.await_count == 2
+
+
+# Additional attribute tests
+def test_switch_entity_name_and_unique_id():
+	"""Helios2nPortSwitchEntity should have formatted name and correct unique_id."""
+	device = MagicMock()
+	device.data = SimpleNamespace(serial="SER123", name="Device", mac="M", model="X", hardware="H", firmware="F")
+	coordinator = DummyCoordinator()
+	entity = Helios2nPortSwitchEntity(coordinator, device, "relay1")
+
+	assert entity.name == "Relay 1"
+	assert entity.unique_id == "SER123_port_relay1"
+
+
+def test_lock_entity_name_and_unique_id():
+	"""Helios2nLockEntity should have formatted name and correct unique_id."""
+	device = MagicMock()
+	device.data = SimpleNamespace(serial="ABC", name="Device", mac="M", model="X", hardware="H", firmware="F")
+	coordinator = DummyCoordinator()
+	entity = Helios2nLockEntity(coordinator, device, 5)
+
+	assert entity.name == "Switch 5"
+	assert entity.unique_id == "ABC_switch_5"
+
+
+def test_button_switch_button_name_and_unique_id():
+	"""Helios2nSwitchButtonEntity should have formatted name and correct unique_id."""
+	device = MagicMock()
+	device.data = SimpleNamespace(serial="XYZ", name="Device", mac="M", model="X", hardware="H", firmware="F")
+	entity = Helios2nSwitchButtonEntity(device, 2)
+
+	assert entity.name == "Switch 2"
+	assert entity.unique_id == "XYZ_switch_2"
+
+
+def test_button_restart_button_name_and_unique_id():
+	"""Helios2nRestartButtonEntity should have fixed name and correct unique_id."""
+	device = MagicMock()
+	device.data = SimpleNamespace(serial="RESTART", name="Device", mac="M", model="X", hardware="H", firmware="F")
+	entity = Helios2nRestartButtonEntity(device)
+
+	assert entity.name == "Restart"
+	assert entity.unique_id == "RESTART_restart"
+
+
+
+def test_switch_entity_device_info():
+    """Helios2nPortSwitchEntity should have accessible device_info property."""
+    from custom_components.helios2n.utils import get_device_info
+    
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="SER123",
+        name="Device Name",
+        mac="aa:bb:cc:dd:ee:ff",
+        model="IP Verso",
+        hardware="1.0.0",
+        firmware="2.0.0",
+        host="192.168.1.100",
+    )
+    device.options = SimpleNamespace(protocol="https")
+    coordinator = DummyCoordinator()
+    entity = Helios2nPortSwitchEntity(coordinator, device, "relay1")
+
+    # Access device_info property - should not raise NameError
+    device_info = entity.device_info
+
+    assert device_info is not None
+    assert "helios2n" in str(device_info["identifiers"])
+    assert "SER123" in str(device_info["identifiers"])
+
+
+def test_lock_entity_device_info():
+    """Helios2nLockEntity should have accessible device_info property."""
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="LOCK001",
+        name="Lock Device",
+        mac="11:22:33:44:55:66",
+        model="IP Force",
+        hardware="1.0.0",
+        firmware="2.0.0",
+        host="192.168.1.200",
+    )
+    device.options = SimpleNamespace(protocol="http")
+    coordinator = DummyCoordinator()
+    entity = Helios2nLockEntity(coordinator, device, 5)
+
+    # Access device_info property - should not raise NameError
+    device_info = entity.device_info
+
+    assert device_info is not None
+    assert "helios2n" in str(device_info["identifiers"])
+    assert "LOCK001" in str(device_info["identifiers"])
+
+
+def test_button_entities_device_info():
+    """Button entities should have accessible device_info property."""
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="BTN001",
+        name="Button Device",
+        mac="aa:bb:cc:dd:ee:ff",
+        model="IP Solo",
+        hardware="1.0.0",
+        firmware="2.0.0",
+        host="192.168.1.150",
+    )
+    device.options = SimpleNamespace(protocol="https")
+
+    restart_button = Helios2nRestartButtonEntity(device)
+    switch_button = Helios2nSwitchButtonEntity(device, 3)
+
+    # Access device_info properties - should not raise NameError
+    restart_info = restart_button.device_info
+    switch_info = switch_button.device_info
+
+    assert restart_info is not None
+    assert switch_info is not None
+    assert "helios2n" in str(restart_info["identifiers"])
+    assert "BTN001" in str(restart_info["identifiers"])
+    assert "helios2n" in str(switch_info["identifiers"])
+    assert "BTN001" in str(switch_info["identifiers"])
+
+
+@pytest.mark.asyncio
+async def test_switch_entities_setup_as_homeassistant_would():
+    """Integration test that verifies switch entities work when setup as HA would do it."""
+    # This test simulates the exact flow HomeAssistant uses to setup entities
+    import asyncio
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    
+    # Create a realistic device mock
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="HA-SETUP-TEST",
+        name="Test Switch Device",
+        mac="aa:bb:cc:dd:ee:ff",
+        model="IP Verso",
+        hardware="1.1.0",
+        firmware="2.5.0",
+        host="192.168.1.50",
+        ports=[
+            SimpleNamespace(id="relay1", type="output", state=False),
+            SimpleNamespace(id="relay2", type="output", state=True),
+            SimpleNamespace(id="input1", type="input", state=True),
+        ]
+    )
+    device.options = SimpleNamespace(protocol="https")
+    device.set_port = AsyncMock()
+    
+    # Create coordinator
+    coordinator = DummyCoordinator()
+    
+    # Setup HomeAssistant mock environment
+    hass = MagicMock()
+    hass.data = {
+        DOMAIN: {
+            "entry-1": {
+                "_device": device,
+                "switch": {"coordinator": coordinator}
+            }
+        }
+    }
+    
+    # Create config entry mock
+    config = SimpleNamespace(entry_id="entry-1", data={})
+    
+    # This will hold the created entities
+    created_entities = []
+    
+    def async_add_entities(entities):
+        created_entities.extend(entities)
+    
+    # Call the setup function exactly as HomeAssistant would
+    result = await setup_switch(hass, config, async_add_entities)
+    
+    # Verify setup succeeded
+    assert result is True
+    assert len(created_entities) == 2  # Only output ports
+    assert all(isinstance(e, Helios2nPortSwitchEntity) for e in created_entities)
+    
+    # Now verify that HomeAssistant can access all the properties it needs
+    for entity in created_entities:
+        # These are the properties HomeAssistant accesses when adding entities
+        assert entity.unique_id is not None
+        assert entity.name is not None
+        assert entity.device_info is not None  # This would have failed with NameError
+        assert entity.available is True
+        assert entity.should_poll is False
+        
+        # Verify device_info structure
+        device_info = entity.device_info
+        assert device_info["identifiers"] == {("helios2n", "HA-SETUP-TEST"), ("helios2n", "aa:bb:cc:dd:ee:ff")}
+        assert device_info["name"] == "Test Switch Device"
+        assert device_info["manufacturer"] == "2N/Helios"
+        assert device_info["model"] == "IP Verso"
+        assert device_info["configuration_url"] == "https://192.168.1.50"
+        
+        # Test that the entity can control the device
+        await entity.async_turn_on()
+        device.set_port.assert_called_with(entity._port_id, True)
+        await entity.async_turn_off()
+        device.set_port.assert_called_with(entity._port_id, False)
+
+
+@pytest.mark.asyncio
+async def test_lock_entities_setup_as_homeassistant_would():
+    """Integration test that verifies lock entities work when setup as HA would do it."""
+    from custom_components.helios2n.lock import async_setup_entry as setup_lock
+    
+    # Create realistic device
+    device = MagicMock()
+    device.data = SimpleNamespace(
+        serial="HA-LOCK-TEST",
+        name="Test Lock Device",
+        mac="11:22:33:44:55:66",
+        model="IP Force",
+        hardware="1.0.0",
+        firmware="2.0.0",
+        host="192.168.1.60",
+        switches=[
+            SimpleNamespace(id=1, enabled=True, mode="bistable"),
+            SimpleNamespace(id=2, enabled=False, mode="bistable"),
+            SimpleNamespace(id=3, enabled=True, mode="monostable"),
+        ]
+    )
+    device.options = SimpleNamespace(protocol="http")
+    device.set_switch = AsyncMock()
+    device.get_switch = AsyncMock(return_value=False)
+    
+    coordinator = DummyCoordinator()
+    hass = MagicMock()
+    hass.data = {
+        DOMAIN: {
+            "entry-1": {
+                "_device": device,
+                "lock": {"coordinator": coordinator}
+            }
+        }
+    }
+    
+    config = SimpleNamespace(entry_id="entry-1", data={})
+    created_entities = []
+    
+    def async_add_entities(entities):
+        created_entities.extend(entities)
+    
+    # Setup as HA would
+    result = await setup_lock(hass, config, async_add_entities)
+    
+    assert result is True
+    assert len(created_entities) == 1  # Only enabled bistable switch
+    assert isinstance(created_entities[0], Helios2nLockEntity)
+    
+    entity = created_entities[0]
+    
+    # Verify all properties HA accesses
+    assert entity.unique_id == "HA-LOCK-TEST_switch_1"
+    assert entity.name == "Switch 1"
+    assert entity.device_info is not None
+    assert entity.available is True
+    
+    # Verify device_info
+    device_info = entity.device_info
+    assert ("helios2n", "HA-LOCK-TEST") in device_info["identifiers"]
+    assert device_info["name"] == "Test Lock Device"
+    
+    # Test lock/unlock
+    await entity.async_lock()
+    device.set_switch.assert_called_with(1, False)
+    await entity.async_unlock()
+    device.set_switch.assert_called_with(1, True)

@@ -26,6 +26,18 @@ from custom_components.helios2n.coordinator import (
 )
 
 
+class DummyCoordinator:
+    """Minimal coordinator implementation for entity unit tests."""
+
+    def __init__(self, data=None):
+        self.data = data if data is not None else {}
+        self.last_update_success = True
+        self.async_request_refresh = AsyncMock()
+
+    def async_add_listener(self, _update_callback, _context=None):
+        return lambda: None
+
+
 @pytest.mark.asyncio
 async def test_port_coordinator_returns_port_state_mapping():
     """Port coordinator should return a state mapping for entities."""
@@ -292,3 +304,61 @@ def test_log_subscription_health_binary_sensor_reads_diagnostic_state():
     assert attrs["total_failures"] == 2
     assert attrs["resubscribe_count"] == 1
     assert attrs["last_error"] == "DeviceConnectionError: offline"
+
+
+# Additional attribute tests for binary sensors
+def test_port_binary_sensor_name_and_unique_id():
+    """Helios2nPortBinarySensorEntity should have formatted name and correct unique_id."""
+    device = SimpleNamespace(
+        data=SimpleNamespace(
+            serial="SER123",
+            name="Device",
+            mac="M",
+            model="X",
+            hardware="H",
+            firmware="F",
+        )
+    )
+    coordinator = DummyCoordinator()
+    entity = Helios2nPortBinarySensorEntity(coordinator, device, "input1")
+
+    assert entity.name == "Input 1"
+    assert entity.unique_id == "SER123_port_input1"
+    assert entity._attr_entity_registry_enabled_default is False
+
+
+def test_output_status_binary_sensor_name_unique_id_and_enabled():
+    """Helios2nOutputStatusBinarySensorEntity should have formatted name with 'Status' suffix and correct unique_id."""
+    device = SimpleNamespace(
+        data=SimpleNamespace(
+            serial="ABC",
+            name="Device",
+            mac="M",
+            model="X",
+            hardware="H",
+            firmware="F",
+        )
+    )
+    coordinator = DummyCoordinator()
+    entity = Helios2nOutputStatusBinarySensorEntity(coordinator, device, "relay2")
+
+    assert entity.name == "Relay 2 Status"
+    assert entity.unique_id == "ABC_port_relay2_status"
+    assert entity._attr_entity_registry_enabled_default is True
+
+
+def test_output_status_binary_sensor_is_on_reads_from_coordinator():
+    """Helios2nOutputStatusBinarySensorEntity should read state from coordinator mapping."""
+    coordinator = DummyCoordinator(data={"relay1": True, "relay2": False})
+    entity = Helios2nOutputStatusBinarySensorEntity(coordinator, MagicMock(), "relay1")
+    assert entity.is_on is True
+
+    entity = Helios2nOutputStatusBinarySensorEntity(coordinator, MagicMock(), "relay2")
+    assert entity.is_on is False
+
+    # Missing port should return False
+    entity = Helios2nOutputStatusBinarySensorEntity(coordinator, MagicMock(), "relay3")
+    assert entity.is_on is False
+
+
+
