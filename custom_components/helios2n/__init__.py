@@ -204,8 +204,7 @@ def _validate_timeout(timeout: int | str) -> int:
     return timeout_int
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    
-    @callback
+
     async def api_call(call: ServiceCall) -> ServiceResponse:
         domain = hass.data.get(DOMAIN, {})
         if not domain:
