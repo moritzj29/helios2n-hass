@@ -64,7 +64,7 @@
                     "password": "Bijgewerkt wachtwoord van het HTTP API-account op het apparaat.",
                     "protocol": "Gebruik indien mogelijk HTTPS. Gebruik HTTP alleen op vertrouwde lokale netwerken.",
                     "auth_method": "Authenticatiemethode van het 2N HTTP API-account (Basic of Digest).",
-                    "verify_ssl": "Schakel alleen uit bij zelfondertekende certificaten. De certificaatvingerafdruk wordt dan bewaakt op wijzigingen.",
+                    "verify_ssl": "Schakel alleen uit bij zelfondertekende certificaten.",
                     "create_read_only_status_entities": "Toon extra alleen-lezen entiteiten voor switch-, relay- en outputstatus.",
                     "disable_control_entities": "Verberg lock/button/switch-bedieningsentiteiten standaard."
                 }

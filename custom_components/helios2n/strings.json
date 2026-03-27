@@ -64,7 +64,7 @@
                     "password": "Updated HTTP API account password configured on the device.",
                     "protocol": "Use HTTPS when available. Use HTTP only on trusted local networks.",
                     "auth_method": "Authentication method used by the 2N HTTP API account (Basic or Digest).",
-                    "verify_ssl": "Disable only for self-signed certificates. The certificate fingerprint will then be monitored for changes.",
+                    "verify_ssl": "Disable only for self-signed certificates.",
                     "create_read_only_status_entities": "Expose additional read-only entities for switch, relay and output status.",
                     "disable_control_entities": "Hide lock/button/switch control entities by default."
                 }
