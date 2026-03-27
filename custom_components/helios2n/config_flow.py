@@ -3,8 +3,10 @@ import logging
 from typing import Any
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL, CONF_VERIFY_SSL
+from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import aiohttp
 import voluptuous as vol
 from py2n import Py2NDevice
@@ -98,6 +100,7 @@ def _map_api_error_to_flow_error(error: ApiError) -> str:
 
 
 async def _async_validate_connection(
+    hass: HomeAssistant,
     user_input: dict[str, Any],
 ) -> tuple[Py2NDevice | None, str | None, str, dict[str, Any]]:
     """Validate connection data against the device API."""
@@ -168,8 +171,8 @@ async def _async_validate_connection(
 
     _LOGGER.debug("Testing connection with payload=%s", sanitized_payload)
     try:
-        async with aiohttp.ClientSession() as session:
-            device = await Py2NDevice.create(session, connect_options)
+        session = async_get_clientsession(hass)
+        device = await Py2NDevice.create(session, connect_options)
     except (TimeoutError, asyncio.TimeoutError):
         _LOGGER.error(
             "Connection test failed: timeout; payload=%s",
@@ -239,7 +242,7 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            device, error_key, protocol, _ = await _async_validate_connection(user_input)
+            device, error_key, protocol, _ = await _async_validate_connection(self.hass, user_input)
             if error_key:
                 return self.async_show_form(
                     step_id="init",
@@ -318,7 +321,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             host = user_input[CONF_HOST]
             auth_method = user_input.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD)
             verify_ssl = user_input[CONF_VERIFY_SSL]
-            device, error_key, protocol, _ = await _async_validate_connection(user_input)
+            device, error_key, protocol, _ = await _async_validate_connection(self.hass, user_input)
             if error_key:
                 errors["base"] = error_key
 

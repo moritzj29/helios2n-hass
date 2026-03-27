@@ -22,6 +22,16 @@ from custom_components.helios2n.const import (
     CONF_DISABLE_CONTROL_ENTITIES,
 )
 
+
+@pytest.fixture(autouse=True)
+def mock_async_get_clientsession():
+    """Mock async_get_clientsession to avoid needing real HA infrastructure."""
+    with patch('custom_components.helios2n.config_flow.async_get_clientsession') as mock:
+        # Return a MagicMock that can be used as an aiohttp session
+        mock.return_value = MagicMock()
+        yield mock
+
+
 VALID_USER_INPUT = {
 	"host": "192.168.1.25",
 	"username": "homeassistant",
