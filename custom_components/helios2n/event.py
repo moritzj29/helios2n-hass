@@ -14,6 +14,7 @@ from py2n import Py2NDevice
 
 from .const import DOMAIN
 from .log import _extract_switch_state_change, _extract_user_authenticated, _log_event_signal
+from .utils import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.EVENT
@@ -59,14 +60,7 @@ class Helios2nSwitchStateChangedEventEntity(EventEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name=self._device.data.name,
-            manufacturer="2n/Helios",
-            model=self._device.data.model,
-            hw_version=self._device.data.hardware,
-            sw_version=self._device.data.firmware,
-        )
+        return get_device_info(self._device)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -116,14 +110,7 @@ class Helios2nUserAuthenticatedEventEntity(EventEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name=self._device.data.name,
-            manufacturer="2N/Helios",
-            model=self._device.data.model,
-            hw_version=self._device.data.hardware,
-            sw_version=self._device.data.firmware,
-        )
+        return get_device_info(self._device)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
