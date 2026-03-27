@@ -268,6 +268,8 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
                 data={
                     **self.config_entry.data,
                     CONF_HOST: user_input[CONF_HOST],
+                    CONF_USERNAME: user_input[CONF_USERNAME],
+                    CONF_PASSWORD: user_input[CONF_PASSWORD],
                     CONF_PROTOCOL: protocol,
                     CONF_AUTH_METHOD: auth_method,
                     CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
@@ -276,33 +278,21 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
                     ],
                     CONF_DISABLE_CONTROL_ENTITIES: user_input[CONF_DISABLE_CONTROL_ENTITIES],
                 },
-                options={
-                    **self.config_entry.options,
-                    CONF_USERNAME: user_input[CONF_USERNAME],
-                    CONF_PASSWORD: user_input[CONF_PASSWORD],
-                },
+                options=self.config_entry.options,
             )
             await self.hass.config_entries.async_reload(self.config_entry.entry_id)
             assert device is not None
             return self.async_create_entry(
                 title=device.data.name,
-                data={
-                    **self.config_entry.options,
-                    CONF_USERNAME: user_input[CONF_USERNAME],
-                    CONF_PASSWORD: user_input[CONF_PASSWORD],
-                },
+                data={},
             )
 
         return self.async_show_form(
             step_id="init",
             data_schema=_build_user_form_schema(
                 host_default=self.config_entry.data.get(CONF_HOST, ""),
-                username_default=self.config_entry.options.get(
-                    CONF_USERNAME, self.config_entry.data.get(CONF_USERNAME, "")
-                ),
-                password_default=self.config_entry.options.get(
-                    CONF_PASSWORD, self.config_entry.data.get(CONF_PASSWORD, "")
-                ),
+                username_default=self.config_entry.data.get(CONF_USERNAME, ""),
+                password_default=self.config_entry.data.get(CONF_PASSWORD, ""),
                 protocol_default=self.config_entry.data.get(CONF_PROTOCOL, DEFAULT_PROTOCOL),
                 auth_method_default=self.config_entry.data.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD),
                 verify_ssl_default=self.config_entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
@@ -342,6 +332,8 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=device.data.name,
                     data={
                         CONF_HOST: user_input[CONF_HOST],
+                        CONF_USERNAME: user_input[CONF_USERNAME],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
                         CONF_PROTOCOL: protocol,
                         CONF_AUTH_METHOD: auth_method,
                         CONF_VERIFY_SSL: verify_ssl,
@@ -350,10 +342,7 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         ],
                         CONF_DISABLE_CONTROL_ENTITIES: user_input[CONF_DISABLE_CONTROL_ENTITIES],
                     },
-                    options={
-                        CONF_USERNAME: user_input[CONF_USERNAME],
-                        CONF_PASSWORD: user_input[CONF_PASSWORD],
-                    },
+                    options={},
                 )
 
         # Build defaults from user_input to retain values on error

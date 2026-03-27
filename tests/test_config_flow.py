@@ -48,16 +48,15 @@ def _new_options_flow(mock_hass) -> tuple[Helios2nOptionsFlow, MagicMock]:
 	config_entry.domain = "helios2n"
 	config_entry.data = {
 		"host": "192.168.1.10",
+		"username": "old_user",
+		"password": "old_pass",
 		"protocol": "https",
 		"auth_method": "basic",
 		"verify_ssl": True,
 		"create_read_only_status_entities": False,
 		"disable_control_entities": False,
 	}
-	config_entry.options = {
-		"username": "old_user",
-		"password": "old_pass",
-	}
+	config_entry.options = {}
 	mock_hass.config_entries.async_get_known_entry = MagicMock(return_value=config_entry)
 	mock_hass.config_entries.async_update_entry = MagicMock()
 	mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
@@ -317,26 +316,21 @@ async def test_options_flow_updates_all_connection_parameters(mock_hass):
 
 	assert result["type"] == "create_entry"
 	assert result["title"] == "Door Intercom"
-	assert result["data"] == {
-		"username": "new_user",
-		"password": "new_pass",
-	}
+	assert result["data"] == {}
 	mock_hass.config_entries.async_update_entry.assert_called_once_with(
 		config_entry,
 		data={
 			**config_entry.data,
 			"host": "192.168.1.55",
+			"username": "new_user",
+			"password": "new_pass",
 			"protocol": "https",
 			"auth_method": "basic",
 			"verify_ssl": False,
 			"create_read_only_status_entities": True,
 			"disable_control_entities": True,
 		},
-		options={
-			**config_entry.options,
-			"username": "new_user",
-			"password": "new_pass",
-		},
+		options={},
 	)
 	mock_hass.config_entries.async_reload.assert_awaited_once_with(config_entry.entry_id)
 
@@ -389,13 +383,14 @@ async def test_async_step_user_creates_entry_successfully(mock_hass):
 	assert result["type"] == "create_entry"
 	assert result["title"] == "Door Intercom"
 	assert result["data"]["host"] == VALID_USER_INPUT["host"]
+	assert result["data"]["username"] == VALID_USER_INPUT["username"]
+	assert result["data"]["password"] == VALID_USER_INPUT["password"]
 	assert result["data"]["protocol"] == "https"
 	assert result["data"]["auth_method"] == "basic"
 	assert result["data"]["verify_ssl"] is False
 	assert result["data"]["create_read_only_status_entities"] is False
 	assert result["data"]["disable_control_entities"] is False
-	assert result["options"]["username"] == VALID_USER_INPUT["username"]
-	assert result["options"]["password"] == VALID_USER_INPUT["password"]
+	assert result["options"] == {}
 	assert flow.async_set_unique_id.await_count == 1
 	assert flow.async_set_unique_id.await_args.args == ("SER123",)
 	assert flow._abort_if_unique_id_configured.call_count == 1
@@ -437,4 +432,3 @@ async def test_async_step_user_retains_values_on_validation_error(mock_hass):
 		assert kwargs['verify_ssl_default'] == user_input[CONF_VERIFY_SSL]
 		assert kwargs['create_read_only_status_entities_default'] == user_input[CONF_CREATE_READ_ONLY_STATUS_ENTITIES]
 		assert kwargs['disable_control_entities_default'] == user_input[CONF_DISABLE_CONTROL_ENTITIES]
-

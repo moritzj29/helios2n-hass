@@ -280,8 +280,8 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
         auth_method = normalize_auth_method(config.data.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD))
         connection_data = create_connection_data(
             host=config.data[CONF_HOST],
-            username=config.options.get(CONF_USERNAME, config.data.get(CONF_USERNAME, "")),
-            password=config.options.get(CONF_PASSWORD, config.data.get(CONF_PASSWORD, "")),
+            username=config.data.get(CONF_USERNAME, ""),
+            password=config.data.get(CONF_PASSWORD, ""),
             protocol=config.data[CONF_PROTOCOL],
             auth_method=auth_method,
             ssl_verify=config.data.get(CONF_VERIFY_SSL, True),
