@@ -5,10 +5,10 @@ from unittest.mock import MagicMock
 from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.helios2n import (
-	_validate_api_endpoint,
-	_validate_http_method,
-	_validate_payload_consistency,
-	_validate_timeout,
+    _validate_api_endpoint,
+    _validate_http_method,
+    _validate_payload_consistency,
+    _validate_timeout,
 )
 from custom_components.helios2n.const import (
     DEFAULT_METHOD,
@@ -70,13 +70,13 @@ def test_validate_api_endpoint_rejects_unsafe_or_unknown_paths(invalid_endpoint)
 
 
 def test_validate_payload_consistency_rejects_data_and_json_together():
-	"""Payload validation should reject ambiguous body input."""
-	with pytest.raises(ServiceValidationError):
-		_validate_payload_consistency({"x": 1}, {"y": 2})
+    """Payload validation should reject ambiguous body input."""
+    with pytest.raises(ServiceValidationError):
+        _validate_payload_consistency({"x": 1}, {"y": 2})
 
 
 def test_validate_payload_consistency_accepts_single_payload_source():
-	"""Payload validation should allow either data or json individually."""
-	_validate_payload_consistency({"x": 1}, None)
-	_validate_payload_consistency(None, {"y": 2})
+    """Payload validation should allow either data or json individually."""
+    _validate_payload_consistency({"x": 1}, None)
+    _validate_payload_consistency(None, {"y": 2})
 
