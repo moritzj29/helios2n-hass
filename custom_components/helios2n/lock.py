@@ -11,6 +11,7 @@ from py2n import Py2NDevice
 
 from .const import DOMAIN, CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
 from .coordinator import Helios2nSwitchDataUpdateCoordinator
+from .utils import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.LOCK
@@ -41,15 +42,8 @@ class Helios2nLockEntity(CoordinatorEntity, LockEntity):
         self._switch_id = switch_id
 
     @property
-    def device_info(self) ->DeviceInfo:
-        return DeviceInfo(
-            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name= self._device.data.name,
-            manufacturer = "2n/Helios",
-            model = self._device.data.model,
-            hw_version = self._device.data.hardware,
-            sw_version = self._device.data.firmware,
-        )
+    def device_info(self) -> DeviceInfo:
+        return get_device_info(self._device)
 
     @property
     def is_locked(self) -> bool:

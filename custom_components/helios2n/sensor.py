@@ -12,6 +12,7 @@ from py2n import Py2NDevice
 
 from .const import DOMAIN
 from .coordinator import Helios2nSensorDataUpdateCoordinator
+from .utils import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.SENSOR
@@ -56,14 +57,7 @@ class Helios2nSensorEntity(CoordinatorEntity, SensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name= self._device.data.name,
-            manufacturer = "2n/Helios",
-            model = self._device.data.model,
-            hw_version = self._device.data.hardware,
-            sw_version = self._device.data.firmware,
-        )
+        return get_device_info(self._device)
 
     @property
     def native_value(self):

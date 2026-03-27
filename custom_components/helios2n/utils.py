@@ -1,9 +1,10 @@
 """Utility functions for Helios2N integration."""
 import re
 
-from py2n import Py2NConnectionData
+from homeassistant.helpers.entity import DeviceInfo
+from py2n import Py2NDevice, Py2NConnectionData
 
-from .const import DEFAULT_AUTH_METHOD, SUPPORTED_AUTH_METHODS
+from .const import DEFAULT_AUTH_METHOD, SUPPORTED_AUTH_METHODS, DOMAIN
 
 
 def normalize_auth_method(auth_method_raw: object | None) -> str:
@@ -48,6 +49,18 @@ def format_port_name(port_id: str) -> str:
         return f"{prefix.title()} {number}"
     # If pattern doesn't match, return as-is
     return port_id
+
+
+def get_device_info(device: Py2NDevice) -> DeviceInfo:
+    """Create standardized DeviceInfo for Helios/2N devices."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, device.data.serial), (DOMAIN, device.data.mac)},
+        name=device.data.name,
+        manufacturer="2N/Helios",
+        model=device.data.model,
+        hw_version=device.data.hardware,
+        sw_version=device.data.firmware,
+    )
 
 
 def sanitize_connection_data(connection_data: Py2NConnectionData) -> dict:

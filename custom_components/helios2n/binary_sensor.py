@@ -17,7 +17,7 @@ from .const import (
     DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
 )
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator
-from .utils import format_port_name
+from .utils import format_port_name, get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.BINARY_SENSOR
@@ -68,14 +68,7 @@ class Helios2nPortBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name= self._device.data.name,
-            manufacturer = "2n/Helios",
-            model = self._device.data.model,
-            hw_version = self._device.data.hardware,
-            sw_version = self._device.data.firmware,
-        )
+        return get_device_info(self._device)
 
     @property
     def is_on(self) -> bool:
@@ -124,14 +117,7 @@ class Helios2nLogSubscriptionHealthBinarySensorEntity(BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name= self._device.data.name,
-            manufacturer = "2N/Helios",
-            model = self._device.data.model,
-            hw_version = self._device.data.hardware,
-            sw_version = self._device.data.firmware,
-        )
+        return get_device_info(self._device)
 
 
 class Helios2nSwitchStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
@@ -161,14 +147,7 @@ class Helios2nSwitchStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEnti
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name= self._device.data.name,
-            manufacturer = "2n/Helios",
-            model = self._device.data.model,
-            hw_version = self._device.data.hardware,
-            sw_version = self._device.data.firmware,
-        )
+        return get_device_info(self._device)
 
 
 class Helios2nOutputStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEntity):
@@ -198,11 +177,4 @@ class Helios2nOutputStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEnti
 
     @property
     def device_info(self) -> DeviceInfo:
-        return DeviceInfo(
-            identifiers = {(DOMAIN, self._device.data.serial), (DOMAIN, self._device.data.mac)},
-            name= self._device.data.name,
-            manufacturer = "2n/Helios",
-            model = self._device.data.model,
-            hw_version = self._device.data.hardware,
-            sw_version = self._device.data.firmware,
-        )
+        return get_device_info(self._device)
