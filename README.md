@@ -44,6 +44,9 @@ Older firmware may require a license for API access and are not officially suppo
 	- System
 	- Switch
 	- I/O
+
+  ![API Services](docs/2N_API_services.png)
+
 4. Go to one of the "account" tabs at the top of the page
 5. Create a username/password combo
 6. Select the following permissions:
@@ -55,6 +58,8 @@ Older firmware may require a license for API access and are not officially suppo
 	- UID (Cards & Wiegand) - Monitoring (e.g. for `UserAuthenticated` events)
 	- Keypad - Monitoring (e.g. for `KeyPressed` or `CodeEntered` events)
 	- **More permissions may be needed in the future**
+  
+  ![API Account](docs/2N_API_account.png)
 
 ### API options
 The 2N/helios custom component supports all possible configuration options:
@@ -119,6 +124,8 @@ The integration uses two separate strategies to sync the device states to Home A
 ## Events
 
 The integration subscribes to the device's event log and replicates the events onto Home Assistant's event bus. Subscribe to `helios2n_event` to see which events are fired. Each event payload contains the original log event from the API.
+
+For examples see [docs/events.md](docs/events.md).
 
 ## Actions
 
