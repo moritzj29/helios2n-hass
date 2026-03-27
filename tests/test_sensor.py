@@ -10,8 +10,9 @@ from custom_components.helios2n.sensor import Helios2nSensorEntity, SENSOR_TYPES
 
 def test_uptime_sensor_uses_seconds_without_timestamp_device_class():
     """Uptime sensor should be exposed as timestamp."""
-    assert SENSOR_TYPES["uptime"][1] == SensorDeviceClass.TIMESTAMP
-    assert SENSOR_TYPES["uptime"][2] is None
+    sensor_config = SENSOR_TYPES["uptime"]
+    assert sensor_config.device_class == SensorDeviceClass.TIMESTAMP
+    assert sensor_config.units is None
 
 
 def test_uptime_sensor_native_value_reads_device_uptime():

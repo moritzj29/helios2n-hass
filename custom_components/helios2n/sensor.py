@@ -1,11 +1,12 @@
 import logging
+from typing import Any, Callable, NamedTuple, Optional
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import Platform
 
 from py2n import Py2NDevice
@@ -17,19 +18,31 @@ from .utils import get_device_info
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.SENSOR
 
-# Sensor types are defined as:
-#   variable -> [0]title, [1]device_class, [2]units, [3]icon, [4]enabled_by_default, [5]state_class, [6]update_function, [7]extra_state_function
-SENSOR_TYPES = {
-    "uptime": [
-        "Uptime",
-        SensorDeviceClass.TIMESTAMP,
-        None,
-        "mdi:clock-outline",
-        True,
-        None,
-        lambda device: device.data.uptime,
-        None,
-    ],
+
+class SensorTypeDef(NamedTuple):
+    """Definition of a sensor type configuration."""
+
+    title: str
+    device_class: Optional[SensorDeviceClass]
+    units: Optional[str]
+    icon: str
+    enabled_by_default: bool
+    state_class: Optional[SensorStateClass]
+    update_function: Callable[[Py2NDevice], Any]
+    extra_state_function: Optional[Callable[[Py2NDevice], dict[str, Any] | None]]
+
+
+SENSOR_TYPES: dict[str, SensorTypeDef] = {
+    "uptime": SensorTypeDef(
+        title="Uptime",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        units=None,
+        icon="mdi:clock-outline",
+        enabled_by_default=True,
+        state_class=None,
+        update_function=lambda device: device.data.uptime,
+        extra_state_function=None,
+    ),
 }
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback):
@@ -48,12 +61,14 @@ class Helios2nSensorEntity(CoordinatorEntity, SensorEntity):
         self._device = device
         self._type = data
         self._attr_unique_id = f"{self._device.data.serial}_sensor_{data}"
-        self._attr_name = SENSOR_TYPES[self._type][0]
-        self._attr_device_class = SENSOR_TYPES[self._type][1]
-        self._attr_native_unit_of_measurement = SENSOR_TYPES[self._type][2]
-        self._attr_icon = SENSOR_TYPES[self._type][3]
-        self._attr_entity_registry_enabled_default = SENSOR_TYPES[self._type][4]
-        self._attr_state_class = SENSOR_TYPES[self._type][5]
+
+        sensor_config = SENSOR_TYPES[self._type]
+        self._attr_name = sensor_config.title
+        self._attr_device_class = sensor_config.device_class
+        self._attr_native_unit_of_measurement = sensor_config.units
+        self._attr_icon = sensor_config.icon
+        self._attr_entity_registry_enabled_default = sensor_config.enabled_by_default
+        self._attr_state_class = sensor_config.state_class
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -62,13 +77,13 @@ class Helios2nSensorEntity(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return SENSOR_TYPES[self._type][6](self._device)
+        sensor_config = SENSOR_TYPES[self._type]
+        return sensor_config.update_function(self._device)
 
     @property
     def extra_state_attributes(self):
         """Return the state attributes of the device."""
-        attributes = {}
-        if SENSOR_TYPES[self._type][7]:
-            attributes = SENSOR_TYPES[self._type][7](self._device)
-
-        return attributes
+        sensor_config = SENSOR_TYPES[self._type]
+        if sensor_config.extra_state_function:
+            return sensor_config.extra_state_function(self._device) or {}
+        return {}
