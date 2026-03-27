@@ -46,7 +46,7 @@ async def async_get_supported_log_events(device: Py2NDevice) -> set[str]:
     return set()
 
 
-def _log_event_signal(entry_id: str) -> str:
+def log_event_signal(entry_id: str) -> str:
     """Return dispatcher signal name for a config entry."""
     return f"{DOMAIN}_{entry_id}_log_event"
 
@@ -119,7 +119,7 @@ def _mark_log_resubscribe(hass: HomeAssistant, entry_id: str | None) -> None:
 # Match Specific Events and Extract Parameters
 # --------------------------------------------
 
-def _extract_switch_state_change(event: dict) -> tuple[int, bool] | None:
+def extract_switch_state_change(event: dict) -> tuple[int, bool] | None:
     """Extract switch id and state from a SwitchStateChanged log event."""
     if event.get("event") != "SwitchStateChanged":
         return None
@@ -154,7 +154,7 @@ def _extract_port_state_change(event: dict) -> tuple[str, str | int, bool] | Non
     return event_name, port_identifier, state
 
 
-def _extract_user_authenticated(event: dict) -> dict[str, Any] | None:
+def extract_user_authenticated(event: dict) -> dict[str, Any] | None:
     """Extract user details from a UserAuthenticated log event.
 
     Expected event structure:
@@ -239,7 +239,7 @@ async def _update_switch_state_from_log_event(
     Note: The switch coordinator is stored under Platform.LOCK because switch state
     updates are used by lock entities that control bistable switches.
     """
-    extracted = _extract_switch_state_change(event)
+    extracted = extract_switch_state_change(event)
     if extracted is None:
         return
 
@@ -361,7 +361,7 @@ async def poll_log(
                 hass.bus.async_fire(DOMAIN + "_event", enriched_event)
                 _mark_log_event_seen(hass, entry_id)
                 if entry_id is not None:
-                    async_dispatcher_send(hass, _log_event_signal(entry_id), enriched_event)
+                    async_dispatcher_send(hass, log_event_signal(entry_id), enriched_event)
                     await _update_switch_state_from_log_event(hass, entry_id, enriched_event)
                     await _update_port_state_from_log_event(hass, entry_id, enriched_event)
             retry_count = 0  # Reset on successful poll

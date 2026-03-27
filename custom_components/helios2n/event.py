@@ -13,7 +13,7 @@ from homeassistant.helpers.typing import ConfigType
 from py2n import Py2NDevice
 
 from .const import DOMAIN
-from .log import _extract_switch_state_change, _extract_user_authenticated, _log_event_signal
+from .log import extract_switch_state_change, extract_user_authenticated, log_event_signal
 from .utils import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ class Helios2nSwitchStateChangedEventEntity(EventEntity):
         await super().async_added_to_hass()
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, _log_event_signal(self._entry_id), self._handle_log_event
+                self.hass, log_event_signal(self._entry_id), self._handle_log_event
             )
         )
 
@@ -75,7 +75,7 @@ class Helios2nSwitchStateChangedEventEntity(EventEntity):
         if not isinstance(event, dict):
             return
 
-        extracted = _extract_switch_state_change(event)
+        extracted = extract_switch_state_change(event)
         if extracted is None:
             return
         switch_id, state = extracted
@@ -116,7 +116,7 @@ class Helios2nUserAuthenticatedEventEntity(EventEntity):
         await super().async_added_to_hass()
         self.async_on_remove(
             async_dispatcher_connect(
-                self.hass, _log_event_signal(self._entry_id), self._handle_log_event
+                self.hass, log_event_signal(self._entry_id), self._handle_log_event
             )
         )
 
@@ -125,7 +125,7 @@ class Helios2nUserAuthenticatedEventEntity(EventEntity):
         if not isinstance(event, dict):
             return
 
-        extracted = _extract_user_authenticated(event)
+        extracted = extract_user_authenticated(event)
         if extracted is None:
             return
 
