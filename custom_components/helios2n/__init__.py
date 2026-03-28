@@ -315,10 +315,16 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
     for platform in platforms:
         entry_data.setdefault(platform, {})
-    # Create coordinators
+    # Create coordinators: nomenclature follows underlying py2n library / API
     port_coordinator = Helios2nPortDataUpdateCoordinator(hass, device)
     switch_coordinator = Helios2nSwitchDataUpdateCoordinator(hass, device)
     sensor_coordinator = Helios2nSensorDataUpdateCoordinator(hass, device)
+
+    # Map platforms to their coordinators:
+    # - LOCK uses the switch coordinator because locks are controlled via bistable switches. (switch endpoint)
+    # - SWITCH uses the port coordinator because switch entities represent output ports. (io endpoint)
+    # - BINARY_SENSOR uses the port coordinator for port status sensors. (io endpoint)
+    # - SENSOR uses the sensor coordinator for uptime and other system sensors.
     entry_data[Platform.LOCK]["coordinator"] = switch_coordinator
     entry_data[Platform.SWITCH]["coordinator"] = port_coordinator
     entry_data[Platform.SENSOR]["coordinator"] = sensor_coordinator

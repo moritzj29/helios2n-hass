@@ -59,6 +59,7 @@ def _utc_now_iso() -> str:
 def _get_or_create_log_subscription_state(
     hass: HomeAssistant, entry_id: str | None
 ) -> dict[str, Any] | None:
+    """Get or create subscription health state for a config entry."""
     if entry_id is None:
         return None
     entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
@@ -83,6 +84,7 @@ def _get_or_create_log_subscription_state(
 
 
 def _mark_log_success(hass: HomeAssistant, entry_id: str | None) -> None:
+    """Mark log polling as successful."""
     state = _get_or_create_log_subscription_state(hass, entry_id)
     if state is None:
         return
@@ -92,6 +94,7 @@ def _mark_log_success(hass: HomeAssistant, entry_id: str | None) -> None:
 
 
 def _mark_log_event_seen(hass: HomeAssistant, entry_id: str | None) -> None:
+    """Mark that a log event was received. Add UTC timestamp."""
     state = _get_or_create_log_subscription_state(hass, entry_id)
     if state is None:
         return
@@ -99,6 +102,7 @@ def _mark_log_event_seen(hass: HomeAssistant, entry_id: str | None) -> None:
 
 
 def _mark_log_failure(hass: HomeAssistant, entry_id: str | None, err: Exception) -> None:
+    """Mark log polling as failed and record error."""
     state = _get_or_create_log_subscription_state(hass, entry_id)
     if state is None:
         return
@@ -110,6 +114,7 @@ def _mark_log_failure(hass: HomeAssistant, entry_id: str | None, err: Exception)
 
 
 def _mark_log_resubscribe(hass: HomeAssistant, entry_id: str | None) -> None:
+    """Increment resubscribe count after log resubscription."""
     state = _get_or_create_log_subscription_state(hass, entry_id)
     if state is None:
         return
@@ -347,6 +352,19 @@ async def poll_log(
 ):
     """Poll device logs with retry mechanism."""
     _get_or_create_log_subscription_state(hass, entry_id)
+
+    async def _handle_max_retries(log_msg: str, exc: Exception | None = None) -> str | None:
+        """Log error, resubscribe, reset retry count, and return new logid."""
+        nonlocal logid, retry_count
+        _LOGGER.error(log_msg, exc_info=exc)
+        new_logid = await _async_resubscribe_with_retries(device)
+        if new_logid is not None:
+            logid = new_logid
+            _mark_log_resubscribe(hass, entry_id)
+            _mark_log_success(hass, entry_id)
+        retry_count = 0
+        return logid
+
     while True:
         try:
             for event in await device.log_pull(logid, timeout=30):
@@ -364,56 +382,37 @@ async def poll_log(
                     async_dispatcher_send(hass, log_event_signal(entry_id), enriched_event)
                     await _update_switch_state_from_log_event(hass, entry_id, enriched_event)
                     await _update_port_state_from_log_event(hass, entry_id, enriched_event)
+            # if we exit the loop without exception, it means the log subscription ended gracefully
+            # e.g. either events received or empty event list
             retry_count = 0  # Reset on successful poll
             _mark_log_success(hass, entry_id)
         except asyncio.CancelledError:
             raise
         except (DeviceConnectionError, DeviceUnsupportedError) as err:
+            # timeout/no response or malformed response
             _mark_log_failure(hass, entry_id, err)
             retry_count += 1
             if retry_count > max_retries:
-                # Force a new subscription instead of terminating the background task.
-                _LOGGER.error("Max retries exceeded for log polling: %s", err)
-                new_logid = await _async_resubscribe_with_retries(device)
-                if new_logid is not None:
-                    logid = new_logid
-                    _mark_log_resubscribe(hass, entry_id)
-                    _mark_log_success(hass, entry_id)
-                retry_count = 0
+                logid = await _handle_max_retries("Max retries exceeded for log polling: %s", err)
                 continue
             await asyncio.sleep(RETRY_DELAY_SECONDS)
         except DeviceApiError as err:
             _mark_log_failure(hass, entry_id, err)
             if err.error == ApiError.INVALID_PARAMETER_VALUE:
-                new_logid = await _async_resubscribe_with_retries(device)
-                if new_logid is not None:
-                    logid = new_logid
-                    _mark_log_resubscribe(hass, entry_id)
-                    _mark_log_success(hass, entry_id)
+                # logid might be invalid/expired - try to resubscribe immediately
+                logid = await _handle_max_retries("Invalid parameter; resubscribing: %s", err)
                 retry_count = 0
-            else:
-                retry_count += 1
-                if retry_count > max_retries:
-                    _LOGGER.error("Max retries exceeded for log polling: %s", err)
-                    new_logid = await _async_resubscribe_with_retries(device)
-                    if new_logid is not None:
-                        logid = new_logid
-                        _mark_log_resubscribe(hass, entry_id)
-                        _mark_log_success(hass, entry_id)
-                    retry_count = 0
-                    continue
-                await asyncio.sleep(RETRY_DELAY_SECONDS)
+                continue
+            retry_count += 1
+            if retry_count > max_retries:
+                logid = await _handle_max_retries("Max retries exceeded for log polling: %s", err)
+                continue
+            await asyncio.sleep(RETRY_DELAY_SECONDS)
         except Exception as err:
             _mark_log_failure(hass, entry_id, err)
             _LOGGER.exception("Unexpected error in log polling: %s", err)
             retry_count += 1
             if retry_count > max_retries:
-                _LOGGER.error("Max retries exceeded for unexpected log polling errors")
-                new_logid = await _async_resubscribe_with_retries(device)
-                if new_logid is not None:
-                    logid = new_logid
-                    _mark_log_resubscribe(hass, entry_id)
-                    _mark_log_success(hass, entry_id)
-                retry_count = 0
+                logid = await _handle_max_retries("Max retries exceeded for unexpected log polling errors")
                 continue
             await asyncio.sleep(RETRY_DELAY_SECONDS)
