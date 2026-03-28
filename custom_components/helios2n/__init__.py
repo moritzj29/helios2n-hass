@@ -336,10 +336,8 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
         sensor_coordinator.async_config_entry_first_refresh(),
     )
 
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setups(
-            config, platforms
-        )
+    await hass.config_entries.async_forward_entry_setups(
+        config, platforms
     )
 
     try:

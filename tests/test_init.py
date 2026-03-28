@@ -94,14 +94,8 @@ async def test_async_setup_entry_success(mock_hass, mock_entry, mock_device):
         sensor_coord.async_config_entry_first_refresh = AsyncMock()
         MockSensorCoord.return_value = sensor_coord
 
-        # Make async_create_task actually schedule tasks so forward setups runs
-        mock_hass.async_create_task = lambda coro: asyncio.create_task(coro)
-
         # Run setup
         result = await async_setup_entry(mock_hass, mock_entry)
-
-        # Allow background tasks to run
-        await asyncio.sleep(0)
 
     assert result is True
     # Device stored
@@ -188,3 +182,20 @@ async def test_async_setup_entry_log_subscribe_fails(mock_hass, mock_entry, mock
         for record in caplog.records
         if record.levelname == "WARNING"
     )
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_forward_setups_failure_raises(mock_hass, mock_entry, mock_device):
+    """Test that async_forward_entry_setups exception propagates and fails setup."""
+    with (
+        patch("custom_components.helios2n.async_get_clientsession", return_value=MagicMock()),
+        patch("custom_components.helios2n.Py2NDevice.create", new=AsyncMock(return_value=mock_device)),
+        patch("custom_components.helios2n.Helios2nPortDataUpdateCoordinator", return_value=AsyncMock(async_config_entry_first_refresh=AsyncMock())),
+        patch("custom_components.helios2n.Helios2nSwitchDataUpdateCoordinator", return_value=AsyncMock(async_config_entry_first_refresh=AsyncMock())),
+        patch("custom_components.helios2n.Helios2nSensorDataUpdateCoordinator", return_value=AsyncMock(async_config_entry_first_refresh=AsyncMock())),
+        patch("custom_components.helios2n.async_get_supported_log_events", return_value={"SwitchStateChanged"}),
+    ):
+        # Simulate a platform failing during forward
+        mock_hass.config_entries.async_forward_entry_setups = AsyncMock(side_effect=RuntimeError("platform boom"))
+        with pytest.raises(RuntimeError):
+            await async_setup_entry(mock_hass, mock_entry)
