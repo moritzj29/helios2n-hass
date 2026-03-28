@@ -1,15 +1,7 @@
 """Shared test fixtures for Helios2N integration."""
-from pathlib import Path
-import sys
-
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from py2n import Py2NConnectionData, Py2NDevice
-
-# Ensure integration package imports resolve from repository root.
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture

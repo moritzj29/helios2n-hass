@@ -10,7 +10,7 @@
 	"requirements": [
 		"py2n==0.6.0"
 	],
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"config_flow": true,
 	"homeassistant": "2026.2.0"
 }

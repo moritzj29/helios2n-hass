@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "helios2n"
+version = "0.4.1"
+description = "2N/Helios intercom integration for Home Assistant"
+requires-python = ">=3.12"
+dependencies = [
+    "py2n==0.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "homeassistant==2026.2.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "pylint",
+    "mypy",
+]
+
+[tool.setuptools]
+packages = ["custom_components.helios2n"]

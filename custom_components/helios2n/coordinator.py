@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from datetime import timedelta
-from typing import Generic, Mapping, TypeVar
+from typing import Generic, Mapping, TypeVar, NoReturn
 import async_timeout
 
 from homeassistant.core import HomeAssistant
@@ -43,6 +43,9 @@ class Helios2nMappingDataUpdateCoordinator(
     - Periodic polling acts as reconciliation and must not blindly overwrite
       potentially fresher event-driven state.
     """
+
+    # Subclasses set this in __init__ to the associated Py2NDevice.
+    device: Py2NDevice
 
     def __init__(self, hass: HomeAssistant, *, name: str):
         super().__init__(
@@ -109,7 +112,7 @@ class Helios2nMappingDataUpdateCoordinator(
 
     async def _raise_unsupported_response_update_failed(
         self, err: DeviceUnsupportedError, endpoint: str
-    ) -> None:
+    ) -> NoReturn:
         """Log malformed-response diagnostics from the original failing request."""
         options = getattr(self.device, "options", None)
         protocol = getattr(options, "protocol", "http")

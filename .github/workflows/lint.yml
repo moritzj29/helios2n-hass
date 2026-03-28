@@ -10,26 +10,25 @@ on:
 jobs:
   pylint:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: 'pip'
-          cache-dependency-path: 'dev_requirements.txt'
-      
+          cache-dependency-path: 'pyproject.toml'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r dev_requirements.txt pylint
-      
+          pip install -e ".[dev]"
+
       - name: Lint with pylint
         run: |
           pylint custom_components/helios2n --disable=all --enable=E,F --fail-under=9.0
-        continue-on-error: true
       
       - name: Check imports
         run: |
@@ -38,23 +37,22 @@ jobs:
 
   type-check:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: 'pip'
-          cache-dependency-path: 'dev_requirements.txt'
-      
+          cache-dependency-path: 'pyproject.toml'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r dev_requirements.txt mypy
-      
+          pip install -e ".[dev]"
+
       - name: Type check with mypy
         run: |
           mypy custom_components/helios2n/utils.py --ignore-missing-imports
-        continue-on-error: true
