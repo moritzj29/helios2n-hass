@@ -287,7 +287,7 @@ class Helios2nOptionsFlow(config_entries.OptionsFlow):
             assert device is not None
             return self.async_create_entry(
                 title=device.data.name,
-                data={},
+                data=self.config_entry.options,
             )
 
         return self.async_show_form(
