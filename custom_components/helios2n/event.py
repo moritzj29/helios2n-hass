@@ -22,7 +22,7 @@ PLATFORM = Platform.EVENT
 
 async def async_setup_entry(
     hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback
-):
+) -> bool:
     """Set up Helios/2N event entities."""
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     entry_data = hass.data[DOMAIN].get(config.entry_id, {})

@@ -22,7 +22,7 @@ from .utils import format_port_name, get_device_info
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.BINARY_SENSOR
 
-async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback):
+async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback) -> bool:
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     coordinator: Helios2nPortDataUpdateCoordinator = hass.data[DOMAIN][config.entry_id][PLATFORM]["coordinator"]
     config_data = getattr(config, "data", {})

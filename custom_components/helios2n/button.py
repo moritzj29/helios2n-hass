@@ -12,7 +12,7 @@ from .utils import get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback):
+async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback) -> bool:
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     config_data = getattr(config, "data", {})
     disable_control_entities = config_data.get(
