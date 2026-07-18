@@ -1,10 +1,16 @@
 """Utility functions for Helios2N integration."""
 import re
+from datetime import UTC, datetime
 
 from homeassistant.helpers.entity import DeviceInfo
 from py2n import Py2NDevice, Py2NConnectionData
 
 from .const import DEFAULT_AUTH_METHOD, SUPPORTED_AUTH_METHODS, DOMAIN
+
+
+def utc_now_iso() -> str:
+    """Return current UTC timestamp in ISO format."""
+    return datetime.now(UTC).isoformat()
 
 
 def normalize_auth_method(auth_method_raw: object | None) -> str:

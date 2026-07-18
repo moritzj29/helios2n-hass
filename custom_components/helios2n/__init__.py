@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from datetime import UTC, datetime
 from urllib.parse import unquote, urlsplit
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse
@@ -19,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD, ATTR_LOG_SUBSCRIPTION
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
 from .log import LOG_POLL_TASK, poll_log, async_get_supported_log_events
-from .utils import sanitize_connection_data, create_connection_data, normalize_auth_method
+from .utils import sanitize_connection_data, create_connection_data, normalize_auth_method, utc_now_iso
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.EVENT]
 ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}
@@ -30,10 +29,6 @@ LOG_UNLOADING = "_log_unloading"
 LOG_WATCHDOG_DELAY_SECONDS = 5
 
 
-def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def _mark_log_subscription_unhealthy(entry_data: dict, reason: str) -> None:
     """Expose watchdog-detected task failure in diagnostics state."""
     state = entry_data.get(ATTR_LOG_SUBSCRIPTION)
@@ -42,7 +37,7 @@ def _mark_log_subscription_unhealthy(entry_data: dict, reason: str) -> None:
         entry_data[ATTR_LOG_SUBSCRIPTION] = state
     state["healthy"] = False
     state["last_error"] = reason
-    state["last_error_at"] = _utc_now_iso()
+    state["last_error_at"] = utc_now_iso()
 
 
 def _mark_log_watchdog_resubscribe(entry_data: dict) -> None:
@@ -51,7 +46,7 @@ def _mark_log_watchdog_resubscribe(entry_data: dict) -> None:
         state = {}
         entry_data[ATTR_LOG_SUBSCRIPTION] = state
     state["resubscribe_count"] = int(state.get("resubscribe_count", 0)) + 1
-    state["last_resubscribe_at"] = _utc_now_iso()
+    state["last_resubscribe_at"] = utc_now_iso()
 
 
 async def _async_start_log_poll_task(

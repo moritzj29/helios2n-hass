@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.const import Platform
@@ -21,6 +20,7 @@ from .coordinator import (
     Helios2nPortDataUpdateCoordinator,
     Helios2nSwitchDataUpdateCoordinator,
 )
+from .utils import utc_now_iso
 
 _LOGGER = logging.getLogger(__name__)
 LOG_POLL_TASK = "_log_poll_task"
@@ -49,11 +49,6 @@ async def async_get_supported_log_events(device: Py2NDevice) -> set[str]:
 def log_event_signal(entry_id: str) -> str:
     """Return dispatcher signal name for a config entry."""
     return f"{DOMAIN}_{entry_id}_log_event"
-
-
-def _utc_now_iso() -> str:
-    """Return current UTC timestamp for diagnostics attributes."""
-    return datetime.now(UTC).isoformat()
 
 
 def _get_or_create_log_subscription_state(
@@ -90,7 +85,7 @@ def _mark_log_success(hass: HomeAssistant, entry_id: str | None) -> None:
         return
     state["healthy"] = True
     state["consecutive_failures"] = 0
-    state["last_success_at"] = _utc_now_iso()
+    state["last_success_at"] = utc_now_iso()
 
 
 def _mark_log_event_seen(hass: HomeAssistant, entry_id: str | None) -> None:
@@ -98,7 +93,7 @@ def _mark_log_event_seen(hass: HomeAssistant, entry_id: str | None) -> None:
     state = _get_or_create_log_subscription_state(hass, entry_id)
     if state is None:
         return
-    state["last_event_at"] = _utc_now_iso()
+    state["last_event_at"] = utc_now_iso()
 
 
 def _mark_log_failure(hass: HomeAssistant, entry_id: str | None, err: Exception) -> None:
@@ -110,7 +105,7 @@ def _mark_log_failure(hass: HomeAssistant, entry_id: str | None, err: Exception)
     state["consecutive_failures"] = int(state.get("consecutive_failures", 0)) + 1
     state["total_failures"] = int(state.get("total_failures", 0)) + 1
     state["last_error"] = f"{type(err).__name__}: {err}"
-    state["last_error_at"] = _utc_now_iso()
+    state["last_error_at"] = utc_now_iso()
 
 
 def _mark_log_resubscribe(hass: HomeAssistant, entry_id: str | None) -> None:
@@ -119,7 +114,7 @@ def _mark_log_resubscribe(hass: HomeAssistant, entry_id: str | None) -> None:
     if state is None:
         return
     state["resubscribe_count"] = int(state.get("resubscribe_count", 0)) + 1
-    state["last_resubscribe_at"] = _utc_now_iso()
+    state["last_resubscribe_at"] = utc_now_iso()
 
 # Match Specific Events and Extract Parameters
 # --------------------------------------------
