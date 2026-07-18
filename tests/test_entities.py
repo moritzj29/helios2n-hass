@@ -242,6 +242,7 @@ def test_button_switch_button_name_and_unique_id():
 
     assert entity.name == "Switch 2"
     assert entity.unique_id == "XYZ_switch_2"
+    assert entity._attr_entity_registry_enabled_default is True
 
 
 def test_button_restart_button_name_and_unique_id():

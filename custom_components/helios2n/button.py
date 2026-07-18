@@ -29,6 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
 
 class Helios2nSwitchButtonEntity(ButtonEntity):
     _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = True
     _attr_icon = "mdi:lock-clock"
 
     def __init__(self, device: Py2NDevice, switch_id: int) -> None:
