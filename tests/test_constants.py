@@ -1,5 +1,6 @@
 """Tests for integration constants."""
 import pytest
+from custom_components.helios2n import ALLOWED_HTTP_METHODS, LOG_WATCHDOG_DELAY_SECONDS
 from custom_components.helios2n.const import (
     DOMAIN,
     ATTR_METHOD,
@@ -10,6 +11,14 @@ from custom_components.helios2n.const import (
     ATTR_ENTRY,
     DEFAULT_METHOD,
     DEFAULT_TIMEOUT,
+    CONF_AUTH_METHOD,
+    DEFAULT_AUTH_METHOD,
+    SUPPORTED_AUTH_METHODS,
+    CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
+    DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+    CONF_DISABLE_CONTROL_ENTITIES,
+    DEFAULT_DISABLE_CONTROL_ENTITIES,
+    ATTR_LOG_SUBSCRIPTION,
 )
 
 
@@ -41,3 +50,32 @@ class TestConstants:
         assert isinstance(ATTR_ENDPOINT, str)
         assert isinstance(ATTR_TIMEOUT, str)
         assert isinstance(DEFAULT_METHOD, str)
+
+    def test_auth_method_constants(self):
+        """Test auth method configuration constants."""
+        assert CONF_AUTH_METHOD == "auth_method"
+        assert DEFAULT_AUTH_METHOD == "basic"
+        assert isinstance(SUPPORTED_AUTH_METHODS, tuple)
+        assert "basic" in SUPPORTED_AUTH_METHODS
+        assert "digest" in SUPPORTED_AUTH_METHODS
+
+    def test_entity_control_constants(self):
+        """Test entity visibility and control constants."""
+        assert CONF_CREATE_READ_ONLY_STATUS_ENTITIES == "create_read_only_status_entities"
+        assert DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES is False
+        assert CONF_DISABLE_CONTROL_ENTITIES == "disable_control_entities"
+        assert DEFAULT_DISABLE_CONTROL_ENTITIES is False
+
+    def test_log_subscription_constant(self):
+        """Test log subscription attribute name."""
+        assert ATTR_LOG_SUBSCRIPTION == "log_subscription"
+
+    def test_log_watchdog_delay_constant(self):
+        """Test log watchdog delay is a positive integer."""
+        assert isinstance(LOG_WATCHDOG_DELAY_SECONDS, int)
+        assert LOG_WATCHDOG_DELAY_SECONDS > 0
+
+    def test_allowed_http_methods_constant(self):
+        """Test allowed HTTP methods set contains expected methods."""
+        assert isinstance(ALLOWED_HTTP_METHODS, set)
+        assert ALLOWED_HTTP_METHODS == {"GET", "POST", "PUT", "DELETE"}
