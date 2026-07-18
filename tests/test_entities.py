@@ -106,8 +106,7 @@ async def test_lock_entity_controls_switch_and_refreshes():
     device = MagicMock()
     device.data = SimpleNamespace(serial="SER", name="N", mac="M", model="X", hardware="H", firmware="F")
     device.set_switch = AsyncMock()
-    device.get_switch = MagicMock(return_value=True)
-    coordinator = DummyCoordinator()
+    coordinator = DummyCoordinator(data={7: True})
     entity = Helios2nLockEntity(coordinator, device, 7)
 
     assert entity.is_locked is False

@@ -47,7 +47,10 @@ class Helios2nLockEntity(CoordinatorEntity, LockEntity):
 
     @property
     def is_locked(self) -> bool:
-        return not self._device.get_switch(self._switch_id)
+        data = self.coordinator.data
+        if isinstance(data, dict):
+            return not bool(data.get(self._switch_id, False))
+        return True
 
     async def async_unlock(self, **kwargs) -> None:
         await self._device.set_switch(self._switch_id, True)
