@@ -135,15 +135,19 @@ def extract_switch_state_change(event: dict) -> tuple[int, bool] | None:
 
 
 def _extract_port_state_change(event: dict) -> tuple[str, str | int, bool] | None:
-    """Extract port identifier and state from InputChanged/OutputChanged events."""
+    """Extract port identifier and state from InputChanged/OutputChanged events.
+
+    Per the 2N HTTP API spec these events carry ``params.port`` as the I/O port
+    name (a string, e.g. "input1" or "led_secured"), which is the same
+    identifier returned by /api/io/status and used as the coordinator cache key.
+    """
     event_name = event.get("event")
     if event_name not in {"InputChanged", "OutputChanged"}:
         return None
 
     params = event.get("params")
     payload = params if isinstance(params, dict) else event
-    port_key = "input" if event_name == "InputChanged" else "output"
-    port_identifier = payload.get(port_key)
+    port_identifier = payload.get("port")
     state = payload.get("state")
     if isinstance(port_identifier, bool) or not isinstance(port_identifier, (int, str)):
         return None
@@ -193,9 +197,14 @@ def extract_user_authenticated(event: dict) -> dict[str, Any] | None:
 # -----------------------
 
 def _resolve_port_id_from_event(
-    event_name: str, port_identifier: str | int, known_port_ids: set[str]
+    port_identifier: str | int, known_port_ids: set[str]
 ) -> str:
-    """Resolve event payload port identifier to the integration's port-id format."""
+    """Resolve an event payload port identifier to the coordinator cache key.
+
+    Per the 2N HTTP API spec the event ``params.port`` is already the I/O port name
+    (a string, e.g. "input1" / "led_secured") that matches the cache key 1:1.
+    Only exact and case-insensitive matching is applied as a defensive measure.
+    """
     if isinstance(port_identifier, str):
         port_id = port_identifier.strip()
         if port_id in known_port_ids:
@@ -203,29 +212,10 @@ def _resolve_port_id_from_event(
         normalized_map = {port.lower(): port for port in known_port_ids}
         if port_id.lower() in normalized_map:
             return normalized_map[port_id.lower()]
-        if port_id.isdigit():
-            port_identifier = int(port_id)
-        else:
-            return port_id
-
-    preferred_prefixes = ("input",) if event_name == "InputChanged" else ("relay", "output")
-    numeric_id = int(port_identifier)
-
-    for prefix in preferred_prefixes:
-        candidate = f"{prefix}{numeric_id}"
-        if candidate in known_port_ids:
-            return candidate
-
-    matching_ports = [
-        port_id
-        for port_id in known_port_ids
-        if port_id.endswith(str(numeric_id))
-        and any(port_id.startswith(prefix) for prefix in preferred_prefixes)
-    ]
-    if len(matching_ports) == 1:
-        return matching_ports[0]
-
-    return f"{preferred_prefixes[0]}{numeric_id}"
+        return port_id
+    # Numeric identifiers are not part of the spec; return the raw form so the
+    # caller can surface a mismatch rather than silently guessing a key.
+    return str(port_identifier)
 
 
 async def _update_switch_state_from_log_event(
@@ -290,7 +280,7 @@ async def _update_port_state_from_log_event(
     event_name, port_identifier, state = extracted
     current_raw_data = getattr(coordinator, "data", None)
     current_data = current_raw_data if isinstance(current_raw_data, dict) else {}
-    port_id = _resolve_port_id_from_event(event_name, port_identifier, set(current_data))
+    port_id = _resolve_port_id_from_event(port_identifier, set(current_data))
 
     await coordinator.async_apply_event_update({port_id: state})
 

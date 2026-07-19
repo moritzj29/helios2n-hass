@@ -115,8 +115,8 @@ async def test_poll_log_updates_port_coordinator_cache_from_input_and_output_eve
     device.log_pull = AsyncMock(
         side_effect=[
             [
-                {"event": "InputChanged", "params": {"input": 1, "state": True}},
-                {"event": "OutputChanged", "params": {"output": 1, "state": True}},
+                {"event": "InputChanged", "params": {"port": "input1", "state": True}},
+                {"event": "OutputChanged", "params": {"port": "relay1", "state": True}},
             ],
             asyncio.CancelledError(),
         ]
