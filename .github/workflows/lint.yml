@@ -55,4 +55,4 @@ jobs:
 
       - name: Type check with mypy
         run: |
-          mypy custom_components/helios2n/utils.py --ignore-missing-imports
+          mypy custom_components/helios2n/utils.py custom_components/helios2n/coordinator.py custom_components/helios2n/log.py --ignore-missing-imports

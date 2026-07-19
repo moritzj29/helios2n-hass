@@ -11,6 +11,7 @@ from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError
 import custom_components.helios2n as integration_init_module
 from custom_components.helios2n import LOG_POLL_TASK, async_unload_entry, poll_log
 from custom_components.helios2n.const import ATTR_LOG_SUBSCRIPTION, DOMAIN
+from custom_components.helios2n.coordinator import Helios2nMappingDataUpdateCoordinator
 
 INTEGRATION_MODULE = sys.modules[poll_log.__module__]
 
@@ -86,9 +87,14 @@ async def test_poll_log_updates_switch_coordinator_cache(monkeypatch):
     hass = MagicMock()
     hass.bus = MagicMock()
     hass.bus.async_fire = MagicMock()
-    coordinator = MagicMock()
+    coordinator = MagicMock(spec=Helios2nMappingDataUpdateCoordinator)
     coordinator.data = {1: False}
     coordinator.async_set_updated_data = MagicMock()
+    coordinator.async_apply_event_update = AsyncMock(
+        side_effect=lambda updates: coordinator.async_set_updated_data(
+            {**coordinator.data, **updates}
+        )
+    )
     hass.data = {DOMAIN: {"entry-1": {Platform.LOCK: {"coordinator": coordinator}}}}
 
     dispatcher_send = MagicMock()
@@ -118,11 +124,16 @@ async def test_poll_log_updates_port_coordinator_cache_from_input_and_output_eve
     hass = MagicMock()
     hass.bus = MagicMock()
     hass.bus.async_fire = MagicMock()
-    coordinator = MagicMock()
+    coordinator = MagicMock(spec=Helios2nMappingDataUpdateCoordinator)
     coordinator.data = {"input1": False, "relay1": False}
     def _store_data(data):
         coordinator.data = data
     coordinator.async_set_updated_data = MagicMock(side_effect=_store_data)
+    coordinator.async_apply_event_update = AsyncMock(
+        side_effect=lambda updates: coordinator.async_set_updated_data(
+            {**coordinator.data, **updates}
+        )
+    )
     hass.data = {DOMAIN: {"entry-1": {Platform.SWITCH: {"coordinator": coordinator}}}}
 
     dispatcher_send = MagicMock()

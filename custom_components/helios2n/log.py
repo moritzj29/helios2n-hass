@@ -251,28 +251,14 @@ async def _update_switch_state_from_log_event(
     lock_data = entry_data.get(Platform.LOCK)
     if not isinstance(lock_data, dict):
         return
-    coordinator: Helios2nSwitchDataUpdateCoordinator | Any | None = lock_data.get(
+    coordinator: Helios2nSwitchDataUpdateCoordinator | None = lock_data.get(
         "coordinator"
     )
-    if coordinator is None or not hasattr(coordinator, "async_set_updated_data"):
+    if coordinator is None or not isinstance(coordinator, Helios2nMappingDataUpdateCoordinator):
         return
 
     switch_id, state = extracted
-    if isinstance(coordinator, Helios2nMappingDataUpdateCoordinator):
-        result = coordinator.async_apply_event_update({switch_id: state})
-    else:
-        result = None
-    if asyncio.iscoroutine(result):
-        await result
-        return
-
-    # Fallback for legacy/dummy coordinator objects that do not implement the
-    # async serialized update API.
-    current_raw_data = getattr(coordinator, "data", None)
-    current_data = current_raw_data if isinstance(current_raw_data, dict) else {}
-    updated_data = dict(current_data)
-    updated_data[switch_id] = state
-    coordinator.async_set_updated_data(updated_data)
+    await coordinator.async_apply_event_update({switch_id: state})
 
 
 async def _update_port_state_from_log_event(
@@ -295,10 +281,10 @@ async def _update_port_state_from_log_event(
     switch_data = entry_data.get(Platform.SWITCH)
     if not isinstance(switch_data, dict):
         return
-    coordinator: Helios2nPortDataUpdateCoordinator | Any | None = switch_data.get(
+    coordinator: Helios2nPortDataUpdateCoordinator | None = switch_data.get(
         "coordinator"
     )
-    if coordinator is None or not hasattr(coordinator, "async_set_updated_data"):
+    if coordinator is None or not isinstance(coordinator, Helios2nMappingDataUpdateCoordinator):
         return
 
     event_name, port_identifier, state = extracted
@@ -306,17 +292,7 @@ async def _update_port_state_from_log_event(
     current_data = current_raw_data if isinstance(current_raw_data, dict) else {}
     port_id = _resolve_port_id_from_event(event_name, port_identifier, set(current_data))
 
-    if isinstance(coordinator, Helios2nMappingDataUpdateCoordinator):
-        result = coordinator.async_apply_event_update({port_id: state})
-    else:
-        result = None
-    if asyncio.iscoroutine(result):
-        await result
-        return
-
-    updated_data = dict(current_data)
-    updated_data[port_id] = state
-    coordinator.async_set_updated_data(updated_data)
+    await coordinator.async_apply_event_update({port_id: state})
 
 
 async def _async_resubscribe_with_retries(device) -> str | None:
