@@ -1,9 +1,14 @@
 # 2n-hass
 Home Assistant integration for 2N/Helios devices.
 
-Based on the official [HTTP API](https://wiki.2n.com/hip/hapi/latest/en), but **this custom component is NOT associated to 2N in any way**. 2N, the 2N logo and the product names are registered trademarks by 2N and are solely used for identification purposes.
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
+![Python](https://img.shields.io/badge/python-%3E%3D3.13-green)
+![HACS](https://img.shields.io/badge/HACS-custom-orange)
+![License](https://img.shields.io/badge/license-MIT-lightgray)
 
-Forked from https://github.com/SVD-NL/helios2n-hass.
+This is a fork of [SVD-NL/helios2n-hass](https://github.com/SVD-NL/helios2n-hass) and [Neffez/helios2n-hass](https://github.com/Neffez/helios2n-hass).
+
+Based on the official [HTTP API](https://wiki.2n.com/hip/hapi/latest/en), but **this custom component is NOT associated to 2N in any way**. 2N, the 2N logo and the product names are registered trademarks by 2N and are solely used for identification purposes.
 
 # Supported features
 - Control and monitor switches (outputs), locks (bistable switches), and buttons (monostable)
@@ -28,7 +33,7 @@ Older firmware may require a license for API access and are not officially suppo
 
 # Installation
 ## HACS
-1. Add https://github.com/Neffez/helios2n-hass as a custom repository
+1. Add https://github.com/moritzj29/helios2n-hass as a custom repository
 2. Download 2N/Helios through the regular explore & download prompt
 3. Restart Homeassistant
 
@@ -184,3 +189,6 @@ logger:
     custom_components.helios2n: debug
     py2n: debug
 ```
+
+## AI Disclosure
+AI tools were used to assist development of this integration. All code has been reviewed before being committed.
