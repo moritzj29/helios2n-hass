@@ -70,6 +70,16 @@ async def _async_start_log_poll_task(
 async def _async_handle_log_poll_task_done(
     hass: HomeAssistant, entry_id: str, device: Py2NDevice, done_task: asyncio.Task
 ) -> None:
+    """Done-callback for the ``poll_log`` background task.
+
+    Detects three exit modes:
+    - ``cancelled``: unexpected cancellation during shutdown or reload.
+    - ``exception()``: the loop crashed (logged with ``exc_info``).
+    - clean exit: the subscription ended or returned empty without error.
+
+    Marks the subscription unhealthy and schedules a delayed watchdog
+    resubscribe, unless another watchdog restart is already pending.
+    """
     entry_data = hass.data.get(DOMAIN, {}).get(entry_id)
     if not isinstance(entry_data, dict):
         return
@@ -199,6 +209,12 @@ def _validate_timeout(timeout: int | str) -> int:
     return timeout_int
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Domain-level setup.
+
+    No config entry is involved at this stage. The only action is registering
+    the ``helios2n.api_call`` service, which allows arbitrary device API calls
+    once at least one entry is loaded.
+    """
 
     async def api_call(call: ServiceCall) -> ServiceResponse:
         domain = hass.data.get(DOMAIN, {})
@@ -269,6 +285,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry) -> bool:
+    """Set up a single device config entry.
+
+    Wiring order:
+    1. Create the ``Py2NDevice`` using HA's shared aiohttp session.
+    2. Query ``/api/log/caps`` to detect supported log event types; fall back
+       to a known set for older firmware that does not expose capabilities.
+    3. Create three coordinators and map them to platforms:
+       - LOCK reads from the switch coordinator (bistable switches).
+       - SWITCH / BINARY_SENSOR read from the port coordinator (I/O ports).
+       - SENSOR reads from the sensor coordinator (uptime).
+    4. Run initial refresh on each coordinator, then forward platform setup.
+    5. Subscribe to device logs and start the ``poll_log`` loop under
+        watchdog supervision.
+    """
     try:
         aiohttp_session = async_get_clientsession(hass)
         auth_method = normalize_auth_method(config.data.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD))

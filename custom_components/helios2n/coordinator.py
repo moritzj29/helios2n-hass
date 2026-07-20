@@ -136,6 +136,12 @@ class Helios2nMappingDataUpdateCoordinator(
 
 
 class Helios2nPortDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str]):
+    """Poll ``/api/io/status`` and cache ``{port_id: state}``.
+
+    Cache keys are the port id strings returned by the device (e.g.
+    ``"input1"``, ``"led_secured"``), which are the same identifiers used by
+    ``/api/io/control`` and by ``InputChanged``/``OutputChanged`` log events.
+    """
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
         super().__init__(hass, name=f"Helios2n Port Update [{_get_device_host(device)}]")
         self.device = device
@@ -162,6 +168,10 @@ class Helios2nPortDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str
             await self._raise_unsupported_response_update_failed(err, API_ENDPOINT_IO_STATUS)
 
 class Helios2nSwitchDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[int]):
+    """Poll ``/api/switch/status`` and cache ``{switch_id: state}``.
+
+    Cache keys are integer switch ids as returned by the 2N HTTP API.
+    """
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
         super().__init__(hass, name=f"Helios2n Switch Update [{_get_device_host(device)}]")
         self.device = device
@@ -188,6 +198,7 @@ class Helios2nSwitchDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[i
             await self._raise_unsupported_response_update_failed(err, API_ENDPOINT_SWITCH_STATUS)
 
 class Helios2nSensorDataUpdateCoordinator(Helios2nMappingDataUpdateCoordinator[str]):
+    """Poll ``/api/system/status`` and cache ``{"uptime": datetime}``."""
     def __init__(self, hass: HomeAssistant, device: Py2NDevice):
         super().__init__(hass, name=f"Helios2n Sensor Update [{_get_device_host(device)}]")
         self.device = device
