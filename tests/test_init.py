@@ -24,7 +24,13 @@ def mock_hass():
     """Mock HomeAssistant core."""
     hass = MagicMock()
     hass.data = {}
-    hass.async_create_task = MagicMock()
+
+    def _async_create_task(coroutine):
+        """Close the coroutine to prevent unawaited coroutine warnings."""
+        coroutine.close()
+        return MagicMock()
+
+    hass.async_create_task = _async_create_task
     hass.config_entries = MagicMock()
     hass.config_entries.async_forward_entry_setups = AsyncMock()
     hass.services = MagicMock()
