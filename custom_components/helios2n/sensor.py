@@ -2,7 +2,7 @@ import logging
 from typing import Any, Callable, NamedTuple, Optional
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -45,10 +45,13 @@ SENSOR_TYPES: dict[str, SensorTypeDef] = {
     ),
 }
 
-async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback) -> bool:
+
+async def async_setup_entry(
+    hass: HomeAssistant, config: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> bool:
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     coordinator: Helios2nSensorDataUpdateCoordinator = hass.data[DOMAIN][config.entry_id][PLATFORM]["coordinator"]
-    entities = []
+    entities: list[SensorEntity] = []
     entities.append(Helios2nSensorEntity(coordinator, device, "uptime"))
     async_add_entities(entities)
     return True

@@ -1,10 +1,11 @@
 import logging
+from typing import Any, cast
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 from homeassistant.const import Platform
 
@@ -22,10 +23,13 @@ from .utils import format_port_name, get_device_info
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.BINARY_SENSOR
 
-async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback) -> bool:
+
+async def async_setup_entry(
+    hass: HomeAssistant, config: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> bool:
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     coordinator: Helios2nPortDataUpdateCoordinator = hass.data[DOMAIN][config.entry_id][PLATFORM]["coordinator"]
-    config_data = getattr(config, "data", {})
+    config_data = config.data
     switch_coordinator: Helios2nSwitchDataUpdateCoordinator | None = None
     lock_platform_data = hass.data[DOMAIN][config.entry_id].get(Platform.LOCK)
     if isinstance(lock_platform_data, dict):
@@ -33,7 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
     create_read_only_status_entities = config_data.get(
         CONF_CREATE_READ_ONLY_STATUS_ENTITIES, DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES
     )
-    entities = []
+    entities: list[BinarySensorEntity] = []
     for port in device.data.ports:
         if port.type == "input":
             entities.append(Helios2nPortBinarySensorEntity(coordinator, device, port.id))
@@ -51,7 +55,7 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_e
 
     # Health indicator for the background log subscription loop.
     entities.append(Helios2nLogSubscriptionHealthBinarySensorEntity(hass, device, config.entry_id))
-    
+
     async_add_entities(entities)
     return True
 
@@ -132,7 +136,9 @@ class Helios2nSwitchStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEnti
         device: Py2NDevice,
         switch_id: int,
     ) -> None:
-        super().__init__(coordinator)
+        # CoordinatorEntity expects DataUpdateCoordinator[dict[str, Any]], but our
+        # switch coordinator uses dict[int, object]. Use cast() to satisfy mypy.
+        super().__init__(cast(DataUpdateCoordinator, coordinator))
         self._device = device
         self._switch_id = switch_id
         self._attr_unique_id = f"{self._device.data.serial}_switch_{switch_id}_status"
@@ -142,7 +148,11 @@ class Helios2nSwitchStatusBinarySensorEntity(CoordinatorEntity, BinarySensorEnti
     def is_on(self) -> bool:
         data = self.coordinator.data
         if isinstance(data, dict):
-            return bool(data.get(self._switch_id, False))
+            # Cast to dict[Any, Any] so .get(int_key, ...) is accepted by mypy.
+            # The coordinator's data is dict[int, object], but CoordinatorEntity
+            # types data as dict[str, Any].
+            typed_data = cast(dict[Any, Any], data)
+            return bool(typed_data.get(self._switch_id, False))
         return False
 
     @property

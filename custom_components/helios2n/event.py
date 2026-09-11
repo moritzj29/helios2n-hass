@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.config_entries import ConfigEntry
 
 from py2n import Py2NDevice
 
@@ -21,7 +21,7 @@ PLATFORM = Platform.EVENT
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, config: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> bool:
     """Set up Helios/2N event entities."""
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
@@ -31,7 +31,7 @@ async def async_setup_entry(
     if not supported_log_events:
         supported_log_events = {"SwitchStateChanged", "UserAuthenticated", "InputChanged", "OutputChanged"}
 
-    entities = []
+    entities: list[EventEntity] = []
     if "SwitchStateChanged" in supported_log_events:
         entities.extend([
             Helios2nSwitchStateChangedEventEntity(config.entry_id, device, switch.id, is_enabled=switch.enabled)
