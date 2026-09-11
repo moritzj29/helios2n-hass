@@ -41,7 +41,7 @@ async def test_button_setup_adds_restart_and_monostable_entities():
     )
     hass = MagicMock()
     hass.data = {DOMAIN: {"entry-1": {"_device": device}}}
-    config = SimpleNamespace(entry_id="entry-1")
+    config = SimpleNamespace(entry_id="entry-1", data={})
     async_add_entities = MagicMock()
 
     await setup_button(hass, config, async_add_entities)

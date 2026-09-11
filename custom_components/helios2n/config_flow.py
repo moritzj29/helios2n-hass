@@ -1,31 +1,33 @@
 import asyncio
 import logging
 from typing import Any
-from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, CONF_PROTOCOL, CONF_VERIFY_SSL
-from homeassistant.core import HomeAssistant
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.selector import selector
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
 import aiohttp
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from homeassistant import config_entries
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PROTOCOL, CONF_USERNAME, CONF_VERIFY_SSL
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import selector
 from py2n import Py2NDevice
 from py2n.exceptions import ApiError, DeviceApiError, DeviceConnectionError, DeviceUnsupportedError
+
 from .const import (
+    CONF_AUTH_METHOD,
     CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
     CONF_DISABLE_CONTROL_ENTITIES,
-    DOMAIN,
-    CONF_AUTH_METHOD,
     DEFAULT_AUTH_METHOD,
     DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
     DEFAULT_DISABLE_CONTROL_ENTITIES,
     DEFAULT_VERIFY_SSL,
+    DOMAIN,
     SUPPORTED_AUTH_METHODS,
 )
 from .utils import (
-    sanitize_connection_data,
     create_connection_data,
     normalize_auth_method,
+    sanitize_connection_data,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -318,7 +320,6 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         errors = {}
         if user_input is not None:
-            host = user_input[CONF_HOST]
             auth_method = user_input.get(CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD)
             verify_ssl = user_input[CONF_VERIFY_SSL]
             device, error_key, protocol, _ = await _async_validate_connection(self.hass, user_input)
@@ -376,4 +377,4 @@ class Helios2nConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry):
         """Get options flow for this integration."""
         return Helios2nOptionsFlow()
-    
+

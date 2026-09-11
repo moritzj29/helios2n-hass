@@ -5,7 +5,6 @@ from typing import Any
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-
 from py2n import Py2NDevice
 from py2n.exceptions import (
     ApiError,

@@ -1,29 +1,32 @@
 import logging
+
+from homeassistant.components.switch import SwitchEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import Platform
-
 from py2n import Py2NDevice
 
-from .const import DOMAIN, CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
+from .const import CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES, DOMAIN
 from .coordinator import Helios2nPortDataUpdateCoordinator
 from .utils import format_port_name, get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORM = Platform.SWITCH
 
-async def async_setup_entry(hass: HomeAssistant, config: ConfigType, async_add_entities: AddEntitiesCallback) -> bool:
+
+async def async_setup_entry(
+    hass: HomeAssistant, config: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> bool:
     device: Py2NDevice = hass.data[DOMAIN][config.entry_id]["_device"]
     coordinator: Helios2nPortDataUpdateCoordinator = hass.data[DOMAIN][config.entry_id][PLATFORM]["coordinator"]
-    config_data = getattr(config, "data", {})
+    config_data = config.data
     disable_control_entities = config_data.get(
         CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
     )
-    entities = []
+    entities: list[SwitchEntity] = []
     if not disable_control_entities:
         for port in device.data.ports:
             if port.type == "output":
