@@ -1,13 +1,13 @@
 import logging
-from homeassistant.core import HomeAssistant
+
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.components.button import ButtonEntity, ButtonDeviceClass
-
 from py2n import Py2NDevice
 
-from .const import DOMAIN, CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES
+from .const import CONF_DISABLE_CONTROL_ENTITIES, DEFAULT_DISABLE_CONTROL_ENTITIES, DOMAIN
 from .utils import get_device_info
 
 _LOGGER = logging.getLogger(__name__)

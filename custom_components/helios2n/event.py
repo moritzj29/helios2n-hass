@@ -3,13 +3,12 @@ from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.components.event import EventEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.config_entries import ConfigEntry
-
 from py2n import Py2NDevice
 
 from .const import DOMAIN

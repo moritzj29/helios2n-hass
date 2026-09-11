@@ -1,14 +1,13 @@
 import logging
 from typing import Any, Callable, NamedTuple, Optional
 
-from homeassistant.core import HomeAssistant
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import Platform
-
 from py2n import Py2NDevice
 
 from .const import DOMAIN

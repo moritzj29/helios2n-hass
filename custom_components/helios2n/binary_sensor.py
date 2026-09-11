@@ -1,21 +1,20 @@
 import logging
 from typing import Any, cast
 
-from homeassistant.core import HomeAssistant
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
-from homeassistant.const import Platform
-
 from py2n import Py2NDevice
 
 from .const import (
     ATTR_LOG_SUBSCRIPTION,
-    DOMAIN,
     CONF_CREATE_READ_ONLY_STATUS_ENTITIES,
     DEFAULT_CREATE_READ_ONLY_STATUS_ENTITIES,
+    DOMAIN,
 )
 from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator
 from .utils import format_port_name, get_device_info

@@ -3,22 +3,38 @@ import logging
 import re
 from urllib.parse import unquote, urlsplit
 
-from homeassistant.core import HomeAssistant, ServiceCall, callback, ServiceResponse, SupportsResponse
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.const import CONF_HOST, CONF_USERNAME, CONF_PASSWORD, CONF_PROTOCOL, CONF_VERIFY_SSL, Platform
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PROTOCOL, CONF_USERNAME, CONF_VERIFY_SSL, Platform
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.typing import ConfigType
 from py2n import Py2NDevice
 from py2n.exceptions import Py2NError
 
-_LOGGER = logging.getLogger(__name__)
+from .const import (
+    ATTR_DATA,
+    ATTR_ENDPOINT,
+    ATTR_ENTRY,
+    ATTR_JSON,
+    ATTR_LOG_SUBSCRIPTION,
+    ATTR_METHOD,
+    ATTR_TIMEOUT,
+    CONF_AUTH_METHOD,
+    DEFAULT_AUTH_METHOD,
+    DEFAULT_METHOD,
+    DEFAULT_TIMEOUT,
+    DOMAIN,
+)
+from .coordinator import (
+    Helios2nPortDataUpdateCoordinator,
+    Helios2nSensorDataUpdateCoordinator,
+    Helios2nSwitchDataUpdateCoordinator,
+)
+from .log import LOG_POLL_TASK, async_get_supported_log_events, poll_log
+from .utils import create_connection_data, normalize_auth_method, sanitize_connection_data, utc_now_iso
 
-from .const import DOMAIN, ATTR_METHOD, DEFAULT_METHOD, ATTR_ENDPOINT, ATTR_TIMEOUT, DEFAULT_TIMEOUT, ATTR_DATA, ATTR_JSON, ATTR_ENTRY, CONF_AUTH_METHOD, DEFAULT_AUTH_METHOD, ATTR_LOG_SUBSCRIPTION
-from .coordinator import Helios2nPortDataUpdateCoordinator, Helios2nSwitchDataUpdateCoordinator, Helios2nSensorDataUpdateCoordinator
-from .log import LOG_POLL_TASK, poll_log, async_get_supported_log_events
-from .utils import sanitize_connection_data, create_connection_data, normalize_auth_method, utc_now_iso
+_LOGGER = logging.getLogger(__name__)
 
 platforms = [Platform.BUTTON, Platform.LOCK, Platform.SWITCH, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.EVENT]
 ALLOWED_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE"}

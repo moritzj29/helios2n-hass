@@ -1,12 +1,11 @@
 import asyncio
 import logging
 from datetime import timedelta
-from typing import Generic, Mapping, TypeVar, NoReturn
-import async_timeout
+from typing import Generic, Mapping, NoReturn, TypeVar
 
+import async_timeout
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-
 from py2n import Py2NDevice
 from py2n.exceptions import DeviceApiError, DeviceUnsupportedError
 

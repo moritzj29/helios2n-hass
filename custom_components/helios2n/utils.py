@@ -3,9 +3,9 @@ import re
 from datetime import UTC, datetime
 
 from homeassistant.helpers.entity import DeviceInfo
-from py2n import Py2NDevice, Py2NConnectionData
+from py2n import Py2NConnectionData, Py2NDevice
 
-from .const import DEFAULT_AUTH_METHOD, SUPPORTED_AUTH_METHODS, DOMAIN
+from .const import DEFAULT_AUTH_METHOD, DOMAIN, SUPPORTED_AUTH_METHODS
 
 
 def utc_now_iso() -> str:
